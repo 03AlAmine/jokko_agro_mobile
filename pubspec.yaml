@@ -1,0 +1,49 @@
+name: jokko_agro
+description: Commerce Agricole Sécurisé via Blockchain et IA
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.4.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # UI & Navigation
+  cupertino_icons: ^1.0.8
+  get: ^4.6.6
+  flutter_vector_icons: ^2.0.0
+
+  # Firebase (compatibles entre eux)
+  firebase_core: ^3.4.1
+  firebase_auth: ^5.3.1
+  cloud_firestore: ^5.4.4
+  firebase_storage: ^12.3.4
+  firebase_crashlytics: ^4.1.2
+
+  # Local storage
+  shared_preferences: ^2.2.2
+
+  # QR Code
+  qr_flutter: ^4.1.0
+  mobile_scanner: ^3.4.0
+
+  # Formulaires
+  flutter_form_builder: ^10.0.1
+
+  # Utilitaires
+  intl: ^0.19.0
+  uuid: ^4.3.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.1
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/
+    - assets/icons/
+    - assets/fonts/

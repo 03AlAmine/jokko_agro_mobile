@@ -1,0 +1,82 @@
+{
+  "project_info": {
+    "project_number": "1059478759582",
+    "project_id": "jokko-agro-mobile",
+    "storage_bucket": "jokko-agro-mobile.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1059478759582:android:8a9b4ee06dd04980c0f38f",
+        "android_client_info": {
+          "package_name": "com.example.jokko_agro_mobile"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1059478759582-ot6fhiiqmr4p64co6llpic0semliohk6.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCRBTsVHvZjxGW2y0xOzTJSsS8AotSDde0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1059478759582-ot6fhiiqmr4p64co6llpic0semliohk6.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "1059478759582-pjfhs6n2snghvgluknkuvgk792pcr3t9.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.jokkoagro.app"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1059478759582:android:fe71ebb63f9f9d87c0f38f",
+        "android_client_info": {
+          "package_name": "com.jokkoagro.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1059478759582-ot6fhiiqmr4p64co6llpic0semliohk6.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCRBTsVHvZjxGW2y0xOzTJSsS8AotSDde0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1059478759582-ot6fhiiqmr4p64co6llpic0semliohk6.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "1059478759582-pjfhs6n2snghvgluknkuvgk792pcr3t9.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.jokkoagro.app"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
