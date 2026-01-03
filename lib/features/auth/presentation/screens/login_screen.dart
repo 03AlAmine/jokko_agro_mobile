@@ -1,8 +1,8 @@
-// lib/features/auth/presentation/screens/login_screen.dart - MODIFIÉ
+// lib/features/auth/presentation/screens/login_screen.dart
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:jokko_agro/core/constants/colors.dart';
-import 'package:jokko_agro/core/services/auth_service.dart'; // AJOUTER
+import 'package:jokko_agro/core/services/auth_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -15,30 +15,32 @@ class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  final AuthService _authService = AuthService(); // AJOUTER
+  final AuthService _authService = Get.find<AuthService>();
   bool _isLoading = false;
   bool _obscurePassword = true;
-
-  @override
-  void dispose() {
-    _emailController.dispose();
-    _passwordController.dispose();
-    super.dispose();
-  }
 
   Future<void> _login() async {
     if (_formKey.currentState!.validate()) {
       setState(() => _isLoading = true);
       
       try {
-        // IMPLÉMENTATION DE LA LOGIQUE DE CONNEXION
         await _authService.login(
           email: _emailController.text.trim(),
           password: _passwordController.text,
         );
         
-        // NAVIGATION VERS LE DASHBOARD
-        Get.offAllNamed('/role-selection');
+        // Charger les données utilisateur après connexion
+        await _authService.loadCurrentUser();
+        
+        // ✅ Utiliser directement la redirection basée sur le rôle
+        final role = await _authService.getUserRole();
+        if (role == 'producer') {
+          Get.offAllNamed('/producer/dashboard');
+        } else if (role == 'buyer') {
+          Get.offAllNamed('/buyer/dashboard');
+        } else {
+          Get.offAllNamed('/role-selection');
+        }
         
       } catch (e) {
         Get.snackbar(
@@ -46,6 +48,7 @@ class _LoginScreenState extends State<LoginScreen> {
           e.toString(),
           backgroundColor: AppColors.error,
           colorText: Colors.white,
+          snackPosition: SnackPosition.BOTTOM,
         );
       } finally {
         setState(() => _isLoading = false);
@@ -60,7 +63,7 @@ class _LoginScreenState extends State<LoginScreen> {
         title: const Text('Connexion'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () => Get.back(),
         ),
       ),
       body: SingleChildScrollView(
@@ -87,25 +90,28 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const SizedBox(height: 40),
               
-              // Email Field
+              // Champ Email
               TextFormField(
                 controller: _emailController,
                 decoration: const InputDecoration(
-                  labelText: 'Email ou Téléphone',
+                  labelText: 'Email',
                   prefixIcon: Icon(Icons.email_outlined),
                   border: OutlineInputBorder(),
                 ),
                 keyboardType: TextInputType.emailAddress,
                 validator: (value) {
                   if (value == null || value.isEmpty) {
-                    return 'Veuillez entrer votre email ou téléphone';
+                    return 'Veuillez entrer votre email';
+                  }
+                  if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value)) {
+                    return 'Email invalide';
                   }
                   return null;
                 },
               ),
               const SizedBox(height: 20),
               
-              // Password Field
+              // Champ Mot de passe
               TextFormField(
                 controller: _passwordController,
                 decoration: InputDecoration(
@@ -136,12 +142,11 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const SizedBox(height: 10),
               
-              // Forgot Password
+              // Mot de passe oublié
               Align(
                 alignment: Alignment.centerRight,
                 child: TextButton(
                   onPressed: () {
-                    // NAVIGATION VERS MOT DE PASSE OUBLIÉ
                     Get.toNamed('/forgot-password');
                   },
                   child: const Text('Mot de passe oublié ?'),
@@ -149,7 +154,7 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const SizedBox(height: 30),
               
-              // Login Button
+              // Bouton de connexion
               SizedBox(
                 width: double.infinity,
                 height: 50,
@@ -181,58 +186,7 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const SizedBox(height: 20),
               
-              // Divider
-              const Row(
-                children: [
-                  Expanded(child: Divider(color: AppColors.grey300)),
-                  Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 16),
-                    child: Text(
-                      'Ou continuer avec',
-                      style: TextStyle(color: AppColors.textSecondary),
-                    ),
-                  ),
-                  Expanded(child: Divider(color: AppColors.grey300)),
-                ],
-              ),
-              const SizedBox(height: 20),
-              
-              // Social Login
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  IconButton(
-                    onPressed: () {},
-                    icon: Image.asset(
-                      'assets/icons/google.png',
-                      height: 24,
-                    ),
-                    style: IconButton.styleFrom(
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        side: const BorderSide(color: AppColors.grey300),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 20),
-                  IconButton(
-                    onPressed: () {},
-                    icon: Image.asset(
-                      'assets/icons/wave.png',
-                      height: 24,
-                    ),
-                    style: IconButton.styleFrom(
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        side: const BorderSide(color: AppColors.grey300),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 30),
-              
-              // Sign Up Link
+              // Lien d'inscription
               Center(
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -243,7 +197,6 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     TextButton(
                       onPressed: () {
-                        // NAVIGATION VERS INSCRIPTION
                         Get.toNamed('/register');
                       },
                       child: const Text(

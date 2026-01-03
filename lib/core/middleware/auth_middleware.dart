@@ -1,53 +1,37 @@
-// lib/core/middleware/auth_middleware.dart
+// lib/core/routes/auth_middleware.dart - CORRIGÉ
 import 'package:get/get.dart';
 import 'package:jokko_agro/core/services/auth_service.dart';
 
 class AuthMiddleware extends GetMiddleware {
-  final AuthService authService = AuthService();
+  final AuthService _authService = AuthService();
 
   @override
   Future<GetNavConfig?> redirectDelegate(GetNavConfig route) async {
-    final isLoggedIn = await authService.isLoggedIn();
+    // Vérifier si l'utilisateur est authentifié
+    final isAuthenticated = await _authService.isLoggedIn();
+    final currentRoute = route.currentPage?.name ?? '';
     
-    if (!isLoggedIn && route.currentPage!.name != '/login') {
-      return GetNavConfig.fromRoute('/login');
-    }
-    
-    if (isLoggedIn && route.currentPage!.name == '/login') {
-      final role = await authService.getUserRole();
-      if (role == null) {
-        return GetNavConfig.fromRoute('/role-selection');
-      } else if (role == 'buyer') {
-        return GetNavConfig.fromRoute('/buyer/dashboard');
-      } else if (role == 'producer') {
-        return GetNavConfig.fromRoute('/producer/dashboard');
+    if (!isAuthenticated) {
+      // Si non authentifié, rediriger vers login sauf pour certaines routes
+      if (currentRoute != '/login' && currentRoute != '/register' && currentRoute != '/') {
+        return GetNavConfig.fromRoute('/login');
+      }
+    } else {
+      // Si authentifié, vérifier le rôle
+      final role = await _authService.getUserRole();
+      
+      // Rediriger les utilisateurs authentifiés qui essaient d'accéder au login/register
+      if (currentRoute == '/login' || currentRoute == '/register' || currentRoute == '/') {
+        if (role == 'producer') {
+          return GetNavConfig.fromRoute('/producer/dashboard');
+        } else if (role == 'buyer') {
+          return GetNavConfig.fromRoute('/buyer/dashboard');
+        } else {
+          return GetNavConfig.fromRoute('/role-selection');
+        }
       }
     }
     
-    return await super.redirectDelegate(route);
-  }
-}
-
-// Guard spécifique pour producteur
-class ProducerGuard extends GetMiddleware {
-  @override
-  Future<GetNavConfig?> redirectDelegate(GetNavConfig route) async {
-    final role = await AuthService().getUserRole();
-    if (role != 'producer') {
-      return GetNavConfig.fromRoute('/buyer/dashboard');
-    }
-    return await super.redirectDelegate(route);
-  }
-}
-
-// Guard spécifique pour acheteur
-class BuyerGuard extends GetMiddleware {
-  @override
-  Future<GetNavConfig?> redirectDelegate(GetNavConfig route) async {
-    final role = await AuthService().getUserRole();
-    if (role != 'buyer') {
-      return GetNavConfig.fromRoute('/producer/dashboard');
-    }
-    return await super.redirectDelegate(route);
+    return null;
   }
 }

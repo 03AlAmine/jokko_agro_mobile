@@ -1,4 +1,4 @@
-// lib/features/auth/presentation/screens/register_screen.dart
+// lib/features/auth/presentation/screens/register_screen.dart - MODIFIÉ
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:jokko_agro/core/constants/colors.dart';
@@ -22,12 +22,53 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _fullNameController = TextEditingController();
   
   String _selectedRole = 'buyer';
+  String _selectedLocation = ''; // Ajout pour la localisation
   bool _isLoading = false;
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
 
+  // Liste des régions du Sénégal
+  final List<String> _locations = [
+    'Sélectionnez votre région',
+    'Dakar',
+    'Thiès',
+    'Saint-Louis',
+    'Kaolack',
+    'Ziguinchor',
+    'Diourbel',
+    'Louga',
+    'Tambacounda',
+    'Kolda',
+    'Matam',
+    'Kédougou',
+    'Sédhiou',
+    'Autre région'
+  ];
+
+  Future<void> _redirectBasedOnRole() async {
+    final role = await _authService.getUserRole();
+    if (role == 'producer') {
+      Get.offAllNamed('/producer/dashboard');
+    } else if (role == 'buyer') {
+      Get.offAllNamed('/buyer/dashboard');
+    } else {
+      Get.offAllNamed('/role-selection');
+    }
+  }
+
   Future<void> _register() async {
     if (_formKey.currentState!.validate()) {
+      // Validation de la localisation
+      if (_selectedLocation.isEmpty || _selectedLocation == 'Sélectionnez votre région') {
+        Get.snackbar(
+          'Erreur',
+          'Veuillez sélectionner votre localisation',
+          backgroundColor: AppColors.error,
+          colorText: Colors.white,
+        );
+        return;
+      }
+
       if (_passwordController.text != _confirmPasswordController.text) {
         Get.snackbar(
           'Erreur',
@@ -41,15 +82,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
       setState(() => _isLoading = true);
       
       try {
+        // Créer un objet utilisateur avec la localisation
         await _authService.register(
           email: _emailController.text.trim(),
           password: _passwordController.text,
           phone: _phoneController.text.trim(),
           fullName: _fullNameController.text.trim(),
           role: _selectedRole,
+          location: _selectedLocation, // Ajout de la localisation
         );
         
-        Get.offAllNamed('/role-selection');
+        await _redirectBasedOnRole();
         
       } catch (e) {
         Get.snackbar(
@@ -98,17 +141,40 @@ class _RegisterScreenState extends State<RegisterScreen> {
               ),
               const SizedBox(height: 40),
               
-              // Full Name
+              // Nom complet
               TextFormField(
                 controller: _fullNameController,
                 decoration: const InputDecoration(
-                  labelText: 'Nom complet',
+                  labelText: 'Nom complet *',
                   prefixIcon: Icon(Icons.person_outline),
                   border: OutlineInputBorder(),
                 ),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
-                    return 'Veuillez entrer votre nom';
+                    return 'Veuillez entrer votre nom complet';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 20),
+              
+              // Téléphone
+              TextFormField(
+                controller: _phoneController,
+                decoration: const InputDecoration(
+                  labelText: 'Numéro de téléphone *',
+                  prefixIcon: Icon(Icons.phone_outlined),
+                  border: OutlineInputBorder(),
+                  hintText: '77 123 45 67',
+                ),
+                keyboardType: TextInputType.phone,
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Veuillez entrer votre numéro de téléphone';
+                  }
+                  final cleanPhone = value.replaceAll(RegExp(r'\s+'), '');
+                  if (!RegExp(r'^(77|78|70|76)[0-9]{7}$').hasMatch(cleanPhone)) {
+                    return 'Numéro invalide (format: 77 123 45 67)';
                   }
                   return null;
                 },
@@ -119,7 +185,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               TextFormField(
                 controller: _emailController,
                 decoration: const InputDecoration(
-                  labelText: 'Email',
+                  labelText: 'Email *',
                   prefixIcon: Icon(Icons.email_outlined),
                   border: OutlineInputBorder(),
                 ),
@@ -128,7 +194,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   if (value == null || value.isEmpty) {
                     return 'Veuillez entrer votre email';
                   }
-                  if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value)) {
+                  if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+').hasMatch(value)) {
                     return 'Email invalide';
                   }
                   return null;
@@ -136,33 +202,50 @@ class _RegisterScreenState extends State<RegisterScreen> {
               ),
               const SizedBox(height: 20),
               
-              // Phone
-              TextFormField(
-                controller: _phoneController,
+              // Localisation
+              DropdownButtonFormField<String>(
+                value: _selectedLocation.isNotEmpty 
+                    ? _selectedLocation 
+                    : 'Sélectionnez votre région',
                 decoration: const InputDecoration(
-                  labelText: 'Numéro de téléphone',
-                  prefixIcon: Icon(Icons.phone_outlined),
+                  labelText: 'Localisation *',
+                  prefixIcon: Icon(Icons.location_on_outlined),
                   border: OutlineInputBorder(),
                 ),
-                keyboardType: TextInputType.phone,
+                items: _locations.map((location) {
+                  return DropdownMenuItem<String>(
+                    value: location,
+                    child: Text(location),
+                  );
+                }).toList(),
+                onChanged: (value) {
+                  if (value != null && value != 'Sélectionnez votre région') {
+                    setState(() {
+                      _selectedLocation = value;
+                    });
+                  }
+                },
                 validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Veuillez entrer votre numéro';
+                  if (value == null || 
+                      value.isEmpty || 
+                      value == 'Sélectionnez votre région') {
+                    return 'Veuillez sélectionner votre localisation';
                   }
                   return null;
                 },
               ),
               const SizedBox(height: 20),
               
-              // Role Selection
+              // Sélection du rôle
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
-                    'Vous êtes',
+                    'Je suis : *',
                     style: TextStyle(
-                      color: AppColors.textSecondary,
+                      color: AppColors.textPrimary,
                       fontSize: 16,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
                   const SizedBox(height: 10),
@@ -170,13 +253,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     segments: const [
                       ButtonSegment<String>(
                         value: 'buyer',
-                        label: Text('Acheteur'),
-                        icon: Icon(Icons.shopping_cart),
+                        label: Text('Acheteur 🛒'),
                       ),
                       ButtonSegment<String>(
                         value: 'producer',
-                        label: Text('Producteur'),
-                        icon: Icon(Icons.agriculture),
+                        label: Text('Producteur 👨‍🌾'),
                       ),
                     ],
                     selected: {_selectedRole},
@@ -190,11 +271,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
               ),
               const SizedBox(height: 20),
               
-              // Password
+              // Mot de passe
               TextFormField(
                 controller: _passwordController,
                 decoration: InputDecoration(
-                  labelText: 'Mot de passe',
+                  labelText: 'Mot de passe *',
                   prefixIcon: const Icon(Icons.lock_outline),
                   suffixIcon: IconButton(
                     icon: Icon(
@@ -207,6 +288,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     },
                   ),
                   border: const OutlineInputBorder(),
+                  hintText: '••••••••',
                 ),
                 obscureText: _obscurePassword,
                 validator: (value) {
@@ -214,18 +296,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     return 'Veuillez entrer un mot de passe';
                   }
                   if (value.length < 6) {
-                    return 'Minimum 6 caractères';
+                    return 'Le mot de passe doit contenir au moins 6 caractères';
                   }
                   return null;
                 },
               ),
               const SizedBox(height: 20),
               
-              // Confirm Password
+              // Confirmation mot de passe
               TextFormField(
                 controller: _confirmPasswordController,
                 decoration: InputDecoration(
-                  labelText: 'Confirmer le mot de passe',
+                  labelText: 'Confirmer le mot de passe *',
                   prefixIcon: const Icon(Icons.lock_outline),
                   suffixIcon: IconButton(
                     icon: Icon(
@@ -238,18 +320,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     },
                   ),
                   border: const OutlineInputBorder(),
+                  hintText: '••••••••',
                 ),
                 obscureText: _obscureConfirmPassword,
                 validator: (value) {
                   if (value == null || value.isEmpty) {
-                    return 'Veuillez confirmer le mot de passe';
+                    return 'Veuillez confirmer votre mot de passe';
                   }
                   return null;
                 },
               ),
               const SizedBox(height: 30),
               
-              // Register Button
+              // Bouton d'inscription
               SizedBox(
                 width: double.infinity,
                 height: 50,
@@ -271,7 +354,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           ),
                         )
                       : const Text(
-                          'S\'inscrire',
+                          'Créer mon compte',
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
@@ -281,7 +364,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               ),
               const SizedBox(height: 20),
               
-              // Login Link
+              // Lien de connexion
               Center(
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,

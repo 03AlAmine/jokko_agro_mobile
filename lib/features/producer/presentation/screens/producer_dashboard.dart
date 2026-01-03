@@ -1,4 +1,4 @@
-// lib/features/producer/presentation/screens/producer_dashboard.dart - CORRIGÉ
+// lib/features/producer/presentation/screens/producer_dashboard.dart
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:jokko_agro/core/constants/colors.dart';
@@ -24,183 +24,20 @@ class ProducerDashboard extends StatelessWidget {
         ],
       ),
       drawer: _buildDrawer(context),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Stats Section
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                // CORRECTION 1 : Utiliser withAlpha au lieu de withOpacity
-                color: AppColors.primary.withAlpha((0.1 * 255).round()),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      const CircleAvatar(
-                        radius: 30,
-                        backgroundColor: AppColors.primary,
-                        child: Icon(
-                          Icons.agriculture,
-                          size: 30,
-                          color: Colors.white,
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Bonjour, Producteur!',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .titleLarge
-                                  ?.copyWith(fontWeight: FontWeight.bold),
-                            ),
-                            const SizedBox(height: 4),
-                            const Text(
-                              'Gérez vos produits et ventes',
-                              style: TextStyle(color: AppColors.textSecondary),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: [
-                      _buildStatItem(context, '12', 'Produits'),
-                      _buildStatItem(context, '5', 'Ventes'),
-                      _buildStatItem(context, '4.8', 'Note'),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 24),
-            
-            // Quick Actions
-            Text(
-              'Actions rapides',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 16),
-            
-            GridView.count(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              crossAxisCount: 2,
-              crossAxisSpacing: 16,
-              mainAxisSpacing: 16,
-              childAspectRatio: 1.2,
-              children: [
-                _buildActionCard(
-                  context,
-                  icon: Icons.add_circle_outline,
-                  label: 'Ajouter produit',
-                  color: AppColors.primary,
-                  onTap: () => Get.toNamed('/producer/add-product'),
-                ),
-                _buildActionCard(
-                  context,
-                  icon: Icons.list_alt,
-                  label: 'Mes produits',
-                  color: AppColors.secondary,
-                  onTap: () => Get.toNamed('/producer/products'),
-                ),
-                _buildActionCard(
-                  context,
-                  icon: Icons.sell,
-                  label: 'Ventes',
-                  color: AppColors.accent,
-                  onTap: () => Get.toNamed('/producer/sales'),
-                ),
-                _buildActionCard(
-                  context,
-                  icon: Icons.security,
-                  label: 'Certification',
-                  color: AppColors.blockchain,
-                  onTap: () {},
-                ),
-              ],
-            ),
-            const SizedBox(height: 24),
-            
-            // Recent Sales
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Ventes récentes',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                TextButton(
-                  onPressed: () => Get.toNamed('/producer/sales'),
-                  child: const Text('Voir tout'),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            
-            // Sales List (placeholder)
-            Expanded(
-              child: ListView.builder(
-                itemCount: 5,
-                itemBuilder: (context, index) {
-                  return Card(
-                    child: ListTile(
-                      leading: CircleAvatar(
-                        // CORRECTION 2 : Utiliser withAlpha au lieu de withOpacity
-                        backgroundColor: AppColors.success.withAlpha((0.1 * 255).round()),
-                        child: const Icon(
-                          Icons.shopping_cart,
-                          color: AppColors.success,
-                        ),
-                      ),
-                      title: Text('Vente ${index + 1}'),
-                      subtitle: const Text('Tomates • 10kg'),
-                      trailing: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Text(
-                            '${(index + 1) * 5000} FCFA',
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: Colors.green,
-                            ),
-                          ),
-                          Text(
-                            index % 2 == 0 ? 'Livré' : 'En cours',
-                            style: TextStyle(
-                              color: index % 2 == 0 
-                                ? AppColors.success 
-                                : AppColors.warning,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
+      body: FutureBuilder<Map<String, String?>>(
+        future: _getUserData(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          if (snapshot.hasError) {
+            return Center(child: Text('Erreur: ${snapshot.error}'));
+          }
+
+          final userData = snapshot.data ?? {};
+          return _buildBody(context, userData);
+        },
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => Get.toNamed('/producer/add-product'),
@@ -210,103 +47,261 @@ class ProducerDashboard extends StatelessWidget {
     );
   }
 
-  Widget _buildDrawer(BuildContext context) {
-    return Drawer(
-      child: ListView(
-        padding: EdgeInsets.zero,
+  Future<Map<String, String?>> _getUserData() async {
+    final authService = AuthService();
+    final fullName = await authService.getUserFullName();
+    final email = await authService.getUserEmail();
+    final role = await authService.getUserRole();
+
+    return {
+      'fullName': fullName,
+      'email': email,
+      'role': role,
+    };
+  }
+
+  Widget _buildBody(BuildContext context, Map<String, String?> userData) {
+    return ListView(
+      children: [
+        // Stats Section
+        _buildStatsSection(context, userData),
+
+        // Quick Actions
+        _buildQuickActionsSection(context),
+
+        // Recent Sales
+        _buildRecentSalesSection(context),
+
+        // Espace pour le FAB
+        const SizedBox(height: 80),
+      ],
+    );
+  }
+
+  Widget _buildStatsSection(
+      BuildContext context, Map<String, String?> userData) {
+    final fullName = userData['fullName'] ?? 'Producteur';
+    final greeting =
+        fullName.isNotEmpty ? 'Bonjour, $fullName!' : 'Bonjour, Producteur!';
+
+    return Container(
+      margin: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppColors.primary.withAlpha(25),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          DrawerHeader(
-            decoration: const BoxDecoration(
-              color: AppColors.primary,
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const CircleAvatar(
-                  radius: 30,
-                  backgroundColor: Colors.white,
-                  child: Icon(
-                    Icons.agriculture,
-                    size: 30,
-                    color: AppColors.primary,
-                  ),
+          Row(
+            children: [
+              const CircleAvatar(
+                radius: 30,
+                backgroundColor: AppColors.primary,
+                child: Icon(
+                  Icons.agriculture,
+                  size: 30,
+                  color: Colors.white,
                 ),
-                const SizedBox(height: 16),
-                Text(
-                  'Producteur Jokko Agro',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    color: Colors.white,
-                  ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      greeting,
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey[800],
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Gérez vos produits et ventes',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                  ],
                 ),
-                Text(
-                  'producteur@example.com',
-                  // CORRECTION 3 : Utiliser withAlpha au lieu de withOpacity
-                  style: TextStyle(color: Colors.white.withAlpha((0.8 * 255).round())),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
-          ListTile(
-            leading: const Icon(Icons.dashboard),
-            title: const Text('Tableau de bord'),
-            onTap: () {},
-          ),
-          ListTile(
-            leading: const Icon(Icons.add_circle_outline),
-            title: const Text('Ajouter produit'),
-            onTap: () => Get.toNamed('/producer/add-product'),
-          ),
-          ListTile(
-            leading: const Icon(Icons.list_alt),
-            title: const Text('Mes produits'),
-            onTap: () => Get.toNamed('/producer/products'),
-          ),
-          ListTile(
-            leading: const Icon(Icons.sell),
-            title: const Text('Mes ventes'),
-            onTap: () => Get.toNamed('/producer/sales'),
-          ),
-          ListTile(
-            leading: const Icon(Icons.message),
-            title: const Text('Messages'),
-            onTap: () => Get.toNamed('/producer/messages'),
-          ),
-          ListTile(
-            leading: const Icon(Icons.star),
-            title: const Text('Réputation'),
-            onTap: () => Get.toNamed('/producer/reputation'),
-          ),
-          const Divider(),
-          ListTile(
-            leading: const Icon(Icons.security),
-            title: const Text('Certification Blockchain'),
-            onTap: () {},
-          ),
-          ListTile(
-            leading: const Icon(Icons.settings),
-            title: const Text('Paramètres'),
-            onTap: () {},
-          ),
-          ListTile(
-            leading: const Icon(Icons.help_outline),
-            title: const Text('Aide'),
-            onTap: () {},
-          ),
-          ListTile(
-            leading: const Icon(Icons.logout),
-            title: const Text('Déconnexion'),
-            onTap: () async {
-              await AuthService().logout();
-              Get.offAllNamed('/login');
-            },
+          const SizedBox(height: 20),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _buildStatItem('12', 'Produits'),
+              _buildStatItem('5', 'Ventes'),
+              _buildStatItem('4.8', 'Note'),
+            ],
           ),
         ],
       ),
     );
   }
 
-  Widget _buildActionCard(
-    BuildContext context, {
+  Widget _buildQuickActionsSection(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(left: 0, bottom: 16),
+            child: Text(
+              'Actions rapides',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey[800],
+              ),
+            ),
+          ),
+          GridView.count(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            crossAxisCount: 2,
+            crossAxisSpacing: 16,
+            mainAxisSpacing: 16,
+            childAspectRatio: 1.2,
+            children: [
+              _buildActionCard(
+                icon: Icons.add_circle_outline,
+                label: 'Ajouter produit',
+                color: AppColors.primary,
+                onTap: () => Get.toNamed('/producer/add-product'),
+              ),
+              _buildActionCard(
+                icon: Icons.list_alt,
+                label: 'Mes produits',
+                color: AppColors.secondary,
+                onTap: () => Get.toNamed('/producer/products'),
+              ),
+              _buildActionCard(
+                icon: Icons.sell,
+                label: 'Ventes',
+                color: AppColors.accent,
+                onTap: () => Get.toNamed('/producer/sales'),
+              ),
+              _buildActionCard(
+                icon: Icons.security,
+                label: 'Certification',
+                color: AppColors.blockchain,
+                onTap: () {
+                  Get.toNamed('/producer/certification');
+                },
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRecentSalesSection(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Ventes récentes',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey[800],
+                ),
+              ),
+              TextButton(
+                onPressed: () => Get.toNamed('/producer/sales'),
+                child: const Text('Voir tout'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          _buildSalesList(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSalesList() {
+    return Column(
+      children: List.generate(5, (index) {
+        return Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.grey.withOpacity(0.1),
+                blurRadius: 4,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: ListTile(
+            contentPadding: const EdgeInsets.all(12),
+            leading: Container(
+              width: 50,
+              height: 50,
+              decoration: BoxDecoration(
+                color: AppColors.success.withAlpha(25),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(
+                Icons.shopping_cart,
+                color: AppColors.success,
+                size: 30,
+              ),
+            ),
+            title: Text(
+              'Vente ${index + 1}',
+              style: const TextStyle(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            subtitle: const Text('Tomates • 10kg'),
+            trailing: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  '${(index + 1) * 5000} FCFA',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.green,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  index % 2 == 0 ? 'Livré' : 'En cours',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color:
+                        index % 2 == 0 ? AppColors.success : AppColors.warning,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      }),
+    );
+  }
+
+  Widget _buildActionCard({
     required IconData icon,
     required String label,
     required Color color,
@@ -314,8 +309,18 @@ class ProducerDashboard extends StatelessWidget {
   }) {
     return GestureDetector(
       onTap: onTap,
-      child: Card(
-        elevation: 4,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.withOpacity(0.1),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
@@ -332,7 +337,7 @@ class ProducerDashboard extends StatelessWidget {
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                   fontWeight: FontWeight.bold,
-                  color: AppColors.textPrimary,
+                  fontSize: 14,
                 ),
               ),
             ],
@@ -342,12 +347,13 @@ class ProducerDashboard extends StatelessWidget {
     );
   }
 
-  Widget _buildStatItem(BuildContext context, String value, String label) {
+  Widget _buildStatItem(String value, String label) {
     return Column(
       children: [
         Text(
           value,
-          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+          style: const TextStyle(
+            fontSize: 20,
             fontWeight: FontWeight.bold,
             color: AppColors.primary,
           ),
@@ -355,12 +361,154 @@ class ProducerDashboard extends StatelessWidget {
         const SizedBox(height: 4),
         Text(
           label,
-          style: const TextStyle(
-            color: AppColors.textSecondary,
+          style: TextStyle(
+            color: Colors.grey[600],
             fontSize: 12,
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildDrawer(BuildContext context) {
+    return FutureBuilder<Map<String, String?>>(
+      future: _getUserData(),
+      builder: (context, snapshot) {
+        final userData = snapshot.data ?? {};
+        final fullName = userData['fullName'] ?? 'Producteur Jokko Agro';
+        final email = userData['email'] ?? 'producteur@example.com';
+
+        return Drawer(
+          child: ListView(
+            padding: EdgeInsets.zero,
+            children: [
+              Container(
+                height: 200,
+                decoration: const BoxDecoration(
+                  color: AppColors.primary,
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const CircleAvatar(
+                        radius: 30,
+                        backgroundColor: Colors.white,
+                        child: Icon(
+                          Icons.agriculture,
+                          size: 30,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        fullName,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        email,
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.white.withAlpha(200),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              ListTile(
+                leading: const Icon(Icons.dashboard),
+                title: const Text('Tableau de bord'),
+                onTap: () {
+                  // Fermer le drawer et rester sur la même page
+                  Navigator.pop(context);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.add_circle_outline),
+                title: const Text('Ajouter produit'),
+                onTap: () {
+                  Navigator.pop(context);
+                  Get.toNamed('/producer/add-product');
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.list_alt),
+                title: const Text('Mes produits'),
+                onTap: () {
+                  Navigator.pop(context);
+                  Get.toNamed('/producer/products');
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.sell),
+                title: const Text('Mes ventes'),
+                onTap: () {
+                  Navigator.pop(context);
+                  Get.toNamed('/producer/sales');
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.message),
+                title: const Text('Messages'),
+                onTap: () {
+                  Navigator.pop(context);
+                  Get.toNamed('/producer/messages');
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.star),
+                title: const Text('Réputation'),
+                onTap: () {
+                  Navigator.pop(context);
+                  Get.toNamed('/producer/reputation');
+                },
+              ),
+              const Divider(),
+              ListTile(
+                leading: const Icon(Icons.security),
+                title: const Text('Certification Blockchain'),
+                onTap: () {
+                  Navigator.pop(context);
+                  Get.toNamed('/producer/certification');
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.settings),
+                title: const Text('Paramètres'),
+                onTap: () {
+                  Navigator.pop(context);
+                  Get.toNamed('/producer/settings');
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.help_outline),
+                title: const Text('Aide'),
+                onTap: () {
+                  Navigator.pop(context);
+                  Get.toNamed('/producer/help');
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.logout),
+                title: const Text('Déconnexion'),
+                onTap: () async {
+                  Navigator.pop(context);
+                  await AuthService().logout();
+                  Get.offAllNamed('/login');
+                },
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

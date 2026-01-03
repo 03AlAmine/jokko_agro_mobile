@@ -1,14 +1,14 @@
-// lib/shared/models/user_model.dart
+// lib/shared/models/user_model.dart - MODIFIÉ
 class AppUser {
   final String uid;
   final String email;
   final String phone;
   final String fullName;
   final String role; // 'buyer', 'producer', 'admin'
+  final String? location; // Changé de Map<String, dynamic>? à String?
   final String? profileImage;
   final DateTime createdAt;
   final DateTime? updatedAt;
-  final Map<String, dynamic>? location;
   final String? wolofName; // Pour l'assistant vocal
 
   AppUser({
@@ -17,10 +17,10 @@ class AppUser {
     required this.phone,
     required this.fullName,
     required this.role,
+    this.location, // Ajouté ici
     this.profileImage,
     required this.createdAt,
     this.updatedAt,
-    this.location,
     this.wolofName,
   });
 
@@ -31,10 +31,10 @@ class AppUser {
       'phone': phone,
       'fullName': fullName,
       'role': role,
+      'location': location, // Ajouté ici
       'profileImage': profileImage,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt?.toIso8601String(),
-      'location': location,
       'wolofName': wolofName,
     };
   }
@@ -46,10 +46,10 @@ class AppUser {
       phone: map['phone'] ?? '',
       fullName: map['fullName'] ?? '',
       role: map['role'] ?? 'buyer',
+      location: map['location'], // Ajouté ici
       profileImage: map['profileImage'],
       createdAt: DateTime.parse(map['createdAt']),
       updatedAt: map['updatedAt'] != null ? DateTime.parse(map['updatedAt']) : null,
-      location: map['location'],
       wolofName: map['wolofName'],
     );
   }

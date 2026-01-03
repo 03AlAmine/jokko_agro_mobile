@@ -1,10 +1,13 @@
-// lib/core/routes/app_pages.dart
+// lib/core/routes/app_pages.dart - VERSION FINALE
 import 'package:get/get.dart';
 import 'package:jokko_agro/features/auth/presentation/screens/login_screen.dart';
 import 'package:jokko_agro/features/auth/presentation/screens/register_screen.dart';
 import 'package:jokko_agro/features/auth/presentation/screens/role_selection_screen.dart';
 import 'package:jokko_agro/features/buyer/presentation/screens/buyer_dashboard.dart';
 import 'package:jokko_agro/features/producer/presentation/screens/producer_dashboard.dart';
+import 'package:jokko_agro/features/producer/presentation/screens/add_product_screen.dart';
+import 'package:jokko_agro/features/producer/presentation/screens/products_screen.dart';
+import 'package:jokko_agro/features/buyer/presentation/screens/market_screen.dart';
 
 abstract class AppPages {
   static final pages = [
@@ -27,6 +30,20 @@ abstract class AppPages {
     GetPage(
       name: '/producer/dashboard',
       page: () => const ProducerDashboard(),
+    ),
+    // Dans lib/core/routes/app_pages.dart
+    GetPage(
+      name: '/producer/add-product',
+      page: () => const AddProductScreen(),
+    ),
+    // Dans lib/core/routes/app_pages.dart
+    GetPage(
+      name: '/producer/products',
+      page: () => const ProductsScreen(),
+    ),
+    GetPage(
+      name: '/buyer/market',
+      page: () => const MarketScreen(),
     ),
   ];
 }
