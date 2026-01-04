@@ -1,37 +1,41 @@
-// lib/core/routes/auth_middleware.dart - CORRIGÉ
+// lib/core/middleware/auth_middleware.dart - VERSION SIMPLIFIÉE
 import 'package:get/get.dart';
 import 'package:jokko_agro/core/services/auth_service.dart';
 
 class AuthMiddleware extends GetMiddleware {
-  final AuthService _authService = AuthService();
-
+  final AuthService authService = Get.find<AuthService>();
+  
   @override
   Future<GetNavConfig?> redirectDelegate(GetNavConfig route) async {
-    // Vérifier si l'utilisateur est authentifié
-    final isAuthenticated = await _authService.isLoggedIn();
-    final currentRoute = route.currentPage?.name ?? '';
-    
-    if (!isAuthenticated) {
-      // Si non authentifié, rediriger vers login sauf pour certaines routes
-      if (currentRoute != '/login' && currentRoute != '/register' && currentRoute != '/') {
-        return GetNavConfig.fromRoute('/login');
-      }
-    } else {
-      // Si authentifié, vérifier le rôle
-      final role = await _authService.getUserRole();
+    try {
+      final isAuthenticated = await authService.isLoggedIn;
+      final currentRoute = route.currentPage?.name ?? '';
       
-      // Rediriger les utilisateurs authentifiés qui essaient d'accéder au login/register
-      if (currentRoute == '/login' || currentRoute == '/register' || currentRoute == '/') {
-        if (role == 'producer') {
-          return GetNavConfig.fromRoute('/producer/dashboard');
-        } else if (role == 'buyer') {
-          return GetNavConfig.fromRoute('/buyer/dashboard');
-        } else {
+      // Routes publiques
+      final publicRoutes = ['/login', '/register', '/', '/forgot-password'];
+      
+      if (!isAuthenticated) {
+        // Rediriger les non-authentifiés vers login
+        if (!publicRoutes.contains(currentRoute)) {
+          return GetNavConfig.fromRoute('/login');
+        }
+      } else {
+        // Rediriger les authentifiés depuis les routes publiques
+        if (publicRoutes.contains(currentRoute)) {
+          final role = await authService.getUserRole();
+          
+          if (role == 'producer') {
+            return GetNavConfig.fromRoute('/producer/dashboard');
+          } else if (role == 'buyer') {
+            return GetNavConfig.fromRoute('/buyer/dashboard');
+          }
           return GetNavConfig.fromRoute('/role-selection');
         }
       }
+      
+      return null;
+    } catch (e) {
+      return GetNavConfig.fromRoute('/');
     }
-    
-    return null;
   }
 }

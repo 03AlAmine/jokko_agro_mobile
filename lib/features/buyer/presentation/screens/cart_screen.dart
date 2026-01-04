@@ -1,4 +1,4 @@
-// lib/features/cart/presentation/screens/cart_screen.dart
+// lib/features/buyer/presentation/screens/cart_screen.dart
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:jokko_agro/core/constants/colors.dart';
@@ -18,10 +18,18 @@ class _CartScreenState extends State<CartScreen> {
   final CartService cartService = Get.find<CartService>();
 
   @override
+  void initState() {
+    super.initState();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('🛒 Mon Panier'),
+        title: Obx(() {
+          // Utiliser directement itemCount (int) sans .value
+          return Text('🛒 Mon Panier (${cartService.itemCount})');
+        }),
         actions: [
           Obx(() {
             if (cartService.cartItems.isNotEmpty) {
@@ -36,15 +44,17 @@ class _CartScreenState extends State<CartScreen> {
         ],
       ),
       body: Obx(() {
+        // Utiliser directement isCartEmpty (bool) sans .value
         if (cartService.isCartEmpty) {
           return _buildEmptyCart();
         }
-        
+
         return _buildCartContent();
       }),
     );
   }
-  
+
+
   Widget _buildEmptyCart() {
     return Center(
       child: Padding(
@@ -52,7 +62,8 @@ class _CartScreenState extends State<CartScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.shopping_cart_outlined, size: 80, color: Colors.grey),
+            const Icon(Icons.shopping_cart_outlined,
+                size: 80, color: Colors.grey),
             const SizedBox(height: 24),
             const Text(
               'Votre panier est vide',
@@ -73,7 +84,8 @@ class _CartScreenState extends State<CartScreen> {
               icon: const Icon(Icons.store),
               label: const Text('Explorer le marché'),
               style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
               ),
             ),
           ],
@@ -81,28 +93,31 @@ class _CartScreenState extends State<CartScreen> {
       ),
     );
   }
-  
+
   Widget _buildCartContent() {
     return Column(
       children: [
-        // Liste des articles
         Expanded(
-          child: ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: cartService.cartItems.length,
-            itemBuilder: (context, index) {
-              final item = cartService.cartItems[index];
-              return _buildCartItem(item);
-            },
-          ),
+          child: Obx(() {
+            if (cartService.cartItems.isEmpty) {
+              return _buildEmptyCart();
+            }
+
+            return ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: cartService.cartItems.length,
+              itemBuilder: (context, index) {
+                final item = cartService.cartItems[index];
+                return _buildCartItem(item);
+              },
+            );
+          }),
         ),
-        
-        // Résumé et bouton de commande
         _buildCartSummary(),
       ],
     );
   }
-  
+
   Widget _buildCartItem(CartItem item) {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -111,7 +126,6 @@ class _CartScreenState extends State<CartScreen> {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Image/Emoji du produit
             Container(
               width: 60,
               height: 60,
@@ -127,8 +141,6 @@ class _CartScreenState extends State<CartScreen> {
               ),
             ),
             const SizedBox(width: 12),
-            
-            // Informations du produit
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -149,8 +161,6 @@ class _CartScreenState extends State<CartScreen> {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  
-                  // Prix et quantité
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -165,7 +175,9 @@ class _CartScreenState extends State<CartScreen> {
                         'Stock: ${item.stock}',
                         style: TextStyle(
                           fontSize: 12,
-                          color: item.quantity > item.stock ? Colors.red : Colors.green,
+                          color: item.quantity > item.stock
+                              ? Colors.red
+                              : Colors.green,
                         ),
                       ),
                     ],
@@ -174,12 +186,9 @@ class _CartScreenState extends State<CartScreen> {
               ),
             ),
             const SizedBox(width: 12),
-            
-            // Contrôle de quantité et actions
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                // Contrôle de quantité
                 Container(
                   decoration: BoxDecoration(
                     border: Border.all(color: Colors.grey.shade300),
@@ -210,8 +219,6 @@ class _CartScreenState extends State<CartScreen> {
                   ),
                 ),
                 const SizedBox(height: 8),
-                
-                // Prix total et suppression
                 Row(
                   children: [
                     Text(
@@ -224,7 +231,8 @@ class _CartScreenState extends State<CartScreen> {
                     ),
                     const SizedBox(width: 8),
                     IconButton(
-                      icon: const Icon(Icons.delete_outline, size: 20, color: Colors.red),
+                      icon: const Icon(Icons.delete_outline,
+                          size: 20, color: Colors.red),
                       onPressed: () => controller.removeItem(item),
                       padding: EdgeInsets.zero,
                     ),
@@ -237,7 +245,7 @@ class _CartScreenState extends State<CartScreen> {
       ),
     );
   }
-  
+
   Widget _buildCartSummary() {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -256,20 +264,32 @@ class _CartScreenState extends State<CartScreen> {
       ),
       child: Column(
         children: [
-          // Détails du prix
-          _buildPriceDetail('Sous-total', cartService.calculatedSubtotal),
-          _buildPriceDetail('Frais de livraison', cartService.calculatedDeliveryFee),
+          _buildPriceDetail(
+              'Sous-total', cartService.subtotal), // Utiliser subtotal
+          _buildPriceDetail('Frais de livraison',
+              cartService.deliveryFee), // Utiliser deliveryFee
           const Divider(height: 20),
-          _buildPriceDetail('Total', cartService.calculatedTotal, isTotal: true),
-          
+          _buildPriceDetail('Total', cartService.total,
+              isTotal: true), // Utiliser total
+
           const SizedBox(height: 20),
-          
-          // Bouton de commande
+
           SizedBox(
             width: double.infinity,
             height: 50,
             child: ElevatedButton(
-              onPressed: controller.proceedToCheckout,
+              onPressed: () {
+                if (cartService.isCartEmpty) {
+                  Get.snackbar(
+                    'Panier vide',
+                    'Ajoutez des produits avant de commander',
+                    backgroundColor: Colors.red,
+                    colorText: Colors.white,
+                  );
+                  return;
+                }
+                controller.proceedToCheckout();
+              },
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
                 shape: RoundedRectangleBorder(
@@ -286,10 +306,9 @@ class _CartScreenState extends State<CartScreen> {
               ),
             ),
           ),
-          
+
           const SizedBox(height: 8),
-          
-          // Continuer les achats
+
           TextButton(
             onPressed: () => Get.offNamed('/buyer/market'),
             child: const Text('Continuer mes achats'),
@@ -298,8 +317,9 @@ class _CartScreenState extends State<CartScreen> {
       ),
     );
   }
-  
-  Widget _buildPriceDetail(String label, double amount, {bool isTotal = false}) {
+
+  Widget _buildPriceDetail(String label, double amount,
+      {bool isTotal = false}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
@@ -325,4 +345,6 @@ class _CartScreenState extends State<CartScreen> {
       ),
     );
   }
+
+
 }

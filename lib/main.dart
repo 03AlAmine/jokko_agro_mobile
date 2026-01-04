@@ -1,6 +1,4 @@
-// lib/main.dart - VERSION CORRIGÉE
-// ignore_for_file: avoid_print
-
+// lib/main.dart
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:jokko_agro/core/routes/app_pages.dart';
@@ -10,16 +8,53 @@ import 'package:jokko_agro/core/services/auth_service.dart';
 import 'package:jokko_agro/app.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+// lib/main.dart - Partie modifiée
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
-  try {
-    await FirebaseService.initialize();
-  } catch (e) {
-    print('Firebase initialization error: $e');
-  }
-  
+
+  // Initialisation
+  await _initializeApp();
+
   runApp(const JokkoAgroApp());
+}
+
+Future<void> _initializeApp() async {
+  try {
+    // 1. Initialiser Firebase
+    await FirebaseService.initialize();
+    debugPrint('✅ Firebase initialisé');
+
+    // 2. Initialiser GetX
+    Get.lazyPut(() => AuthService(), fenix: true);
+    Get.lazyPut(() => CartService(), fenix: true);
+
+    // 3. Charger l'utilisateur et le panier
+    final authService = Get.find<AuthService>();
+    final cartService = Get.find<CartService>();
+
+    await authService.loadCurrentUser();
+
+    // 4. Charger le panier selon l'état de connexion
+    if (authService.currentUser != null) {
+      debugPrint('👤 Utilisateur connecté: ${authService.currentUser!.email}');
+
+      // Attendre un peu que Firebase Auth soit complètement prêt
+      await Future.delayed(const Duration(milliseconds: 500));
+
+      // Charger le panier depuis Firebase
+      await cartService.loadCart(forceRefresh: true);
+    } else {
+      debugPrint('👤 Utilisateur non connecté');
+
+      // Charger uniquement le cache local
+      await cartService.loadCart();
+    }
+
+    debugPrint('✅ Application initialisée avec succès');
+  } catch (e) {
+    debugPrint('❌ Erreur d\'initialisation: $e');
+    // L'application continue avec des valeurs par défaut
+  }
 }
 
 class JokkoAgroApp extends StatelessWidget {
@@ -39,58 +74,11 @@ class JokkoAgroApp extends StatelessWidget {
         ),
       ),
       debugShowCheckedModeBanner: false,
-      // Utilisez un FutureBuilder pour attendre l'initialisation
-      home: FutureBuilder(
-        future: _initializeApp(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const MaterialApp(
-              home: Scaffold(
-                body: Center(
-                  child: CircularProgressIndicator(),
-                ),
-              ),
-            );
-          }
-          
-          if (snapshot.hasError) {
-            return MaterialApp(
-              home: Scaffold(
-                body: Center(
-                  child: Text('Erreur d\'initialisation: ${snapshot.error}'),
-                ),
-              ),
-            );
-          }
-          
-          return const App();
-        },
-      ),
+      initialRoute: '/',
       getPages: AppPages.pages,
+      defaultTransition: Transition.cupertino,
+      home: const App(),
     );
   }
-
-  static Future<void> _initializeApp() async {
-    // 1. Créer les instances des services
-    final authService = AuthService();
-    final cartService = CartService();
-    
-    // 2. Les enregistrer dans GetX
-    Get.put<AuthService>(authService, permanent: true);
-    Get.put<CartService>(cartService, permanent: true);
-    
-    // 3. Charger l'utilisateur si existant
-    try {
-      await authService.loadCurrentUser();
-    } catch (e) {
-      print('Error loading user: $e');
-    }
-    
-    // 4. Charger le panier
-    try {
-      await cartService.loadCart();
-    } catch (e) {
-      print('Error loading cart: $e');
-    }
-  }
 }
+

@@ -10,10 +10,10 @@ class App extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Vérifier si un utilisateur est déjà connecté
-    final authService = Get.find<AuthService>();
+    final authService = Get.find<AuthService>(); // Correction ici
     
     return FutureBuilder<bool>(
-      future: authService.isLoggedIn(),
+      future: authService.checkLoginStatus(),
       builder: (context, snapshot) {
         // Pendant la vérification, afficher un loader
         if (snapshot.connectionState == ConnectionState.waiting) {
@@ -64,19 +64,17 @@ class App extends StatelessWidget {
                           const SizedBox(height: 20),
                           Text(
                             'Jokko Agro',
-                            style:
-                                Theme.of(context).textTheme.headlineLarge?.copyWith(
-                                      color: AppColors.primary,
-                                      fontWeight: FontWeight.bold,
-                                    ),
+                            style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+                                  color: AppColors.primary,
+                                  fontWeight: FontWeight.bold,
+                                ),
                           ),
                           const SizedBox(height: 10),
                           Text(
                             'Commerce Agricole Sécurisé',
-                            style:
-                                Theme.of(context).textTheme.titleMedium?.copyWith(
-                                      color: AppColors.textSecondary,
-                                    ),
+                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  color: AppColors.textSecondary,
+                                ),
                           ),
                         ],
                       ),

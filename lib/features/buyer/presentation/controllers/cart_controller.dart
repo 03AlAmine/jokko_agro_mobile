@@ -1,4 +1,4 @@
-// lib/features/cart/presentation/controllers/cart_controller.dart
+// lib/features/buyer/presentation/controllers/cart_controller.dart
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:jokko_agro/core/services/cart_service.dart';

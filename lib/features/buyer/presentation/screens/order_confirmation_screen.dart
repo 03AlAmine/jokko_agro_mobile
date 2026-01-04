@@ -2,11 +2,10 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:jokko_agro/core/constants/colors.dart';
-import 'package:jokko_agro/shared/models/order_model.dart';
-
+import 'package:jokko_agro/shared/models/order_model.dart' as my_order; // Ajout d'alias
 
 class OrderConfirmationScreen extends StatelessWidget {
-  final Order order;
+  final my_order.Order order; // Utilisation de l'alias
 
   const OrderConfirmationScreen({super.key, required this.order});
 
@@ -22,7 +21,6 @@ class OrderConfirmationScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            // Icône de confirmation
             Container(
               width: 100,
               height: 100,
@@ -38,7 +36,6 @@ class OrderConfirmationScreen extends StatelessWidget {
             ),
             const SizedBox(height: 24),
             
-            // Titre
             const Text(
               'Commande confirmée !',
               style: TextStyle(
@@ -48,7 +45,6 @@ class OrderConfirmationScreen extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             
-            // Numéro de commande
             Text(
               'N° ${order.id}',
               style: const TextStyle(
@@ -58,7 +54,6 @@ class OrderConfirmationScreen extends StatelessWidget {
             ),
             const SizedBox(height: 32),
             
-            // Carte de résumé
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(16),
@@ -79,7 +74,6 @@ class OrderConfirmationScreen extends StatelessWidget {
             ),
             const SizedBox(height: 24),
             
-            // Instructions
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -106,7 +100,6 @@ class OrderConfirmationScreen extends StatelessWidget {
             ),
             const SizedBox(height: 32),
             
-            // Boutons d'action
             Row(
               children: [
                 Expanded(

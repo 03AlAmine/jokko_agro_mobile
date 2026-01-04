@@ -1,143 +1,269 @@
 // lib/features/cart/data/services/cart_service.dart
-// ignore_for_file: avoid_print
-
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart' hide Order;
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:jokko_agro/shared/models/market_model.dart';
 import 'package:jokko_agro/shared/models/cart_model.dart';
-import 'package:jokko_agro/shared/models/order_model.dart';
+import 'package:jokko_agro/shared/models/order_model.dart' as my_order;
 
 class CartService extends GetxService {
   static CartService get to => Get.find();
-
+  
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-
-  final RxList<CartItem> cartItems = <CartItem>[].obs;
-  final RxDouble subtotal = 0.0.obs;
-  final RxDouble deliveryFee = 0.0.obs;
-  final RxDouble total = 0.0.obs;
-  final RxInt itemCount = 0.obs;
-
+  
+  // Variables réactives
+  final RxList<CartItem> _cartItems = <CartItem>[].obs;
+  final RxDouble _subtotal = 0.0.obs;
+  final RxDouble _deliveryFee = 0.0.obs;
+  final RxDouble _total = 0.0.obs;
+  final RxInt _itemCount = 0.obs;
+  final RxBool _isLoading = false.obs;
+  
+  // Getters publics
+  List<CartItem> get cartItems => _cartItems.toList();
+  double get subtotal => _subtotal.value;
+  double get deliveryFee => _deliveryFee.value;
+  double get total => _total.value;
+  int get itemCount => _itemCount.value;
+  bool get isLoading => _isLoading.value;
+  bool get isCartEmpty => _cartItems.isEmpty;
+  
   @override
   void onInit() {
     super.onInit();
-    loadCart();
+    debugPrint('🛒 CartService initialisé');
   }
-
-  Future<void> loadCart() async {
+  
+  /// Charge le panier depuis Firebase et le cache local
+  Future<void> loadCart({bool forceRefresh = false}) async {
+    try {
+      if (_isLoading.value && !forceRefresh) return;
+      
+      _isLoading.value = true;
+      debugPrint('🔄 Chargement du panier...');
+      
+      final user = _auth.currentUser;
+      
+      // 1. Charger depuis le cache local d'abord (pour réactivité)
+      final List<CartItem> localItems = await _loadFromLocalCache();
+      
+      if (!forceRefresh && localItems.isNotEmpty) {
+        _cartItems.value = localItems;
+        _calculateTotals();
+        debugPrint('📱 Panier chargé depuis cache local: ${_cartItems.length} items');
+      }
+      
+      // 2. Si utilisateur connecté, synchroniser avec Firebase
+      if (user != null) {
+        try {
+          debugPrint('👤 Synchronisation avec Firebase pour ${user.uid}');
+          
+          final cartDoc = await _firestore
+              .collection('user_carts')
+              .doc(user.uid)
+              .get()
+              .timeout(const Duration(seconds: 10));
+          
+          if (cartDoc.exists && cartDoc.data() != null) {
+            final data = cartDoc.data()!;
+            
+            if (data['items'] != null && data['items'] is List) {
+              final firebaseItems = (data['items'] as List)
+                  .map((item) {
+                    try {
+                      return CartItem.fromMap(Map<String, dynamic>.from(item));
+                    } catch (e) {
+                      debugPrint('⚠️ Erreur conversion item Firebase: $e');
+                      return null;
+                    }
+                  })
+                  .where((item) => item != null)
+                  .cast<CartItem>()
+                  .toList();
+              
+              debugPrint('☁️ ${firebaseItems.length} items chargés depuis Firebase');
+              
+              // Fusionner les paniers: priorité à Firebase
+              if (firebaseItems.isNotEmpty) {
+                await _mergeCarts(localItems, firebaseItems);
+              } else if (localItems.isNotEmpty) {
+                // Sauvegarder le cache local dans Firebase
+                await _saveCartToFirebase(localItems);
+              }
+            }
+          } else {
+            debugPrint('📭 Aucun panier dans Firebase');
+            if (localItems.isNotEmpty) {
+              await _saveCartToFirebase(localItems);
+            }
+          }
+        } catch (e) {
+          debugPrint('⚠️ Erreur Firebase: $e - Utilisation du cache local');
+        }
+      }
+      
+      _calculateTotals();
+      debugPrint('✅ Panier final: ${_cartItems.length} items, Total: ${_total.value}F');
+      
+    } catch (e) {
+      debugPrint('❌ Erreur critique lors du chargement: $e');
+    } finally {
+      _isLoading.value = false;
+    }
+  }
+  
+  /// Fusionne le cache local et Firebase (priorité à Firebase pour les conflits)
+  Future<void> _mergeCarts(List<CartItem> localItems, List<CartItem> firebaseItems) async {
+    final mergedItems = <CartItem>[];
+    final allProductIds = <String>{};
+    
+    // Ajouter d'abord tous les items Firebase
+    for (var fbItem in firebaseItems) {
+      mergedItems.add(fbItem);
+      allProductIds.add(fbItem.productId);
+    }
+    
+    // Ajouter les items locaux qui ne sont pas dans Firebase
+    for (var localItem in localItems) {
+      if (!allProductIds.contains(localItem.productId)) {
+        mergedItems.add(localItem);
+      }
+    }
+    
+    // Vérifier les stocks avant de sauvegarder
+    final validatedItems = await _validateStockQuantities(mergedItems);
+    
+    _cartItems.value = validatedItems;
+    await saveLocalCache(validatedItems);
+    
+    final user = _auth.currentUser;
+    if (user != null) {
+      await _saveCartToFirebase(validatedItems);
+    }
+  }
+  
+  /// Valide les quantités par rapport aux stocks disponibles
+  Future<List<CartItem>> _validateStockQuantities(List<CartItem> items) async {
+    final validatedItems = <CartItem>[];
+    
+    for (var item in items) {
+      try {
+        final productDoc = await _firestore
+            .collection('products')
+            .doc(item.productId)
+            .get();
+        
+        if (productDoc.exists) {
+          final productData = productDoc.data();
+          final availableStock = productData?['quantity'] ?? 0;
+          final minOrderQty = productData?['minOrderQuantity'] ?? 1;
+          
+          // Ajuster la quantité si nécessaire
+          int adjustedQuantity = item.quantity;
+          
+          if (item.quantity > availableStock) {
+            debugPrint('⚠️ Stock insuffisant pour ${item.productName}: ${item.quantity} > $availableStock');
+            adjustedQuantity = availableStock;
+            
+            if (adjustedQuantity < minOrderQty) {
+              debugPrint('❌ Quantité ajustée ($adjustedQuantity) inférieure au minimum ($minOrderQty) - suppression');
+              continue; // Ne pas ajouter cet item
+            }
+          } else if (item.quantity < minOrderQty) {
+            adjustedQuantity = minOrderQty;
+          }
+          
+          if (adjustedQuantity > 0) {
+            validatedItems.add(item.copyWith(quantity: adjustedQuantity));
+          }
+        } else {
+          debugPrint('⚠️ Produit ${item.productId} non trouvé - suppression du panier');
+        }
+      } catch (e) {
+        debugPrint('⚠️ Erreur validation stock pour ${item.productId}: $e');
+        validatedItems.add(item); // Conserver l'item en cas d'erreur
+      }
+    }
+    
+    return validatedItems;
+  }
+  
+  /// Chargement depuis le cache local
+  Future<List<CartItem>> _loadFromLocalCache() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final cartJsonList = prefs.getStringList('cart_items') ?? [];
+      
+      if (cartJsonList.isEmpty) return [];
+      
+      final items = <CartItem>[];
+      
+      for (final jsonString in cartJsonList) {
+        try {
+          final Map<String, dynamic> data = json.decode(jsonString);
+          items.add(CartItem.fromMap(data));
+        } catch (e) {
+          debugPrint('⚠️ Erreur décodage cache local: $e');
+        }
+      }
+      
+      debugPrint('📱 Cache local: ${items.length} items');
+      return items;
+    } catch (e) {
+      debugPrint('❌ Erreur chargement cache local: $e');
+      return [];
+    }
+  }
+  
+  /// Sauvegarde dans le cache local
+  Future<void> saveLocalCache(List<CartItem> items) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final cartJsonList = items.map((item) => json.encode(item.toMap())).toList();
+      await prefs.setStringList('cart_items', cartJsonList);
+      debugPrint('📱 Cache local sauvegardé: ${items.length} items');
+    } catch (e) {
+      debugPrint('❌ Erreur sauvegarde cache local: $e');
+    }
+  }
+  
+  /// Sauvegarde dans Firebase
+  Future<void> _saveCartToFirebase(List<CartItem> items) async {
     try {
       final user = _auth.currentUser;
       if (user == null) {
-        cartItems.value = [];
-        _calculateTotals();
+        debugPrint('👤 Utilisateur non connecté - skip Firebase');
         return;
       }
-
-      // Charger depuis Firebase si l'utilisateur est connecté
-      final cartDoc =
-          await _firestore.collection('user_carts').doc(user.uid).get();
-
-      if (cartDoc.exists) {
-        final data = cartDoc.data();
-        if (data != null && data['items'] != null) {
-          final items = (data['items'] as List)
-              .map((item) => CartItem.fromMap(Map<String, dynamic>.from(item)))
-              .toList();
-          cartItems.value = items;
-        } else {
-          cartItems.value = [];
-        }
-      } else {
-        cartItems.value = [];
-      }
-
-      _calculateTotals();
+      
+      await _firestore
+          .collection('user_carts')
+          .doc(user.uid)
+          .set({
+            'items': items.map((item) => item.toMap()).toList(),
+            'updatedAt': FieldValue.serverTimestamp(),
+            'userId': user.uid,
+            'email': user.email,
+          }, SetOptions(merge: true));
+      
+      debugPrint('☁️ Firebase sauvegardé: ${items.length} items');
     } catch (e) {
-      print('Erreur lors du chargement du panier: $e');
-      // En cas d'erreur, charger depuis le cache local
-      await _loadFromLocalCache();
+      debugPrint('❌ Erreur sauvegarde Firebase: $e');
+      rethrow;
     }
   }
-
-  Future<void> _loadFromLocalCache() async {
+  
+  /// Ajoute un produit au panier
+  Future<void> addToCart(MarketProduct product, {int quantity = 1}) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final cartData = prefs.getStringList('cart_items') ?? [];
-
-      final items = cartData
-          .map((json) {
-            try {
-              final Map<String, dynamic> data =
-                  Map<String, dynamic>.from(json as Map);
-              return CartItem.fromMap(data);
-            } catch (e) {
-              return null;
-            }
-          })
-          .where((item) => item != null)
-          .cast<CartItem>()
-          .toList();
-
-      cartItems.value = items;
-      _calculateTotals();
-    } catch (e) {
-      print('Erreur lors du chargement local: $e');
-      cartItems.value = [];
-    }
-  }
-
-  Future<void> saveCart() async {
-    try {
-      final user = _auth.currentUser;
-
-      if (user != null) {
-        // Sauvegarder dans Firebase
-        await _firestore.collection('user_carts').doc(user.uid).set({
-          'items': cartItems.map((item) => item.toMap()).toList(),
-          'updatedAt': FieldValue.serverTimestamp(),
-        });
-      }
-
-      // Sauvegarder aussi localement
-      final prefs = await SharedPreferences.getInstance();
-      final cartData = cartItems.map((item) => item.toMap()).toList();
-      await prefs.setStringList(
-          'cart_items', cartData.map((map) => map.toString()).toList());
-    } catch (e) {
-      print('Erreur lors de la sauvegarde du panier: $e');
-    }
-  }
-
-  void addToCart(MarketProduct product, {int quantity = 1}) {
-    // Vérifier si le produit existe déjà dans le panier
-    final existingIndex =
-        cartItems.indexWhere((item) => item.productId == product.id);
-
-    if (existingIndex >= 0) {
-      // Augmenter la quantité si le produit existe déjà
-      final existingItem = cartItems[existingIndex];
-      final newQuantity = existingItem.quantity + quantity;
-
-      if (newQuantity <= product.stock) {
-        cartItems[existingIndex] = existingItem.copyWith(quantity: newQuantity);
-      } else {
-        Get.snackbar(
-          'Stock insuffisant',
-          'Stock disponible: ${product.stock} ${product.unit}',
-          backgroundColor: Colors.red,
-          colorText: Colors.white,
-        );
-        return;
-      }
-    } else {
-      // Ajouter un nouvel élément au panier
-      if (quantity >= product.minOrderQuantity && quantity <= product.stock) {
-        cartItems.add(CartItem.fromMarketProduct(product, quantity: quantity));
-      } else if (quantity < product.minOrderQuantity) {
+      debugPrint('➕ Ajout au panier: ${product.name} x$quantity');
+      
+      // Vérifier les contraintes
+      if (quantity < product.minOrderQuantity) {
         Get.snackbar(
           'Quantité minimale',
           'Quantité minimale: ${product.minOrderQuantity} ${product.unit}',
@@ -145,7 +271,9 @@ class CartService extends GetxService {
           colorText: Colors.white,
         );
         return;
-      } else {
+      }
+      
+      if (quantity > product.stock) {
         Get.snackbar(
           'Stock insuffisant',
           'Stock disponible: ${product.stock} ${product.unit}',
@@ -154,99 +282,201 @@ class CartService extends GetxService {
         );
         return;
       }
-    }
-
-    _calculateTotals();
-    saveCart();
-
-    Get.snackbar(
-      'Panier',
-      '${product.name} ajouté au panier',
-      snackPosition: SnackPosition.BOTTOM,
-      duration: const Duration(seconds: 2),
-    );
-  }
-
-  void updateQuantity(String productId, int newQuantity) {
-    final index = cartItems.indexWhere((item) => item.productId == productId);
-
-    if (index >= 0) {
-      final item = cartItems[index];
-
-      if (newQuantity >= item.minOrderQuantity && newQuantity <= item.stock) {
-        cartItems[index] = item.copyWith(quantity: newQuantity);
-        _calculateTotals();
-        saveCart();
-      } else if (newQuantity < item.minOrderQuantity) {
-        Get.snackbar(
-          'Quantité minimale',
-          'Quantité minimale: ${item.minOrderQuantity} ${item.unit}',
-          backgroundColor: Colors.orange,
-          colorText: Colors.white,
-        );
+      
+      final existingIndex = _cartItems.indexWhere((item) => item.productId == product.id);
+      
+      if (existingIndex >= 0) {
+        // Mettre à jour la quantité
+        final existingItem = _cartItems[existingIndex];
+        final newQuantity = existingItem.quantity + quantity;
+        
+        if (newQuantity > product.stock) {
+          Get.snackbar(
+            'Stock insuffisant',
+            'Quantité totale ($newQuantity) dépasse le stock disponible: ${product.stock}',
+            backgroundColor: Colors.red,
+            colorText: Colors.white,
+          );
+          return;
+        }
+        
+        _cartItems[existingIndex] = existingItem.copyWith(quantity: newQuantity);
+        debugPrint('📈 Quantité mise à jour: $newQuantity');
       } else {
-        Get.snackbar(
-          'Stock insuffisant',
-          'Stock disponible: ${item.stock} ${item.unit}',
-          backgroundColor: Colors.red,
-          colorText: Colors.white,
-        );
+        // Nouvel item
+        final newItem = CartItem.fromMarketProduct(product, quantity: quantity);
+        _cartItems.add(newItem);
+        debugPrint('🆕 Nouvel item ajouté: ${newItem.productName}');
       }
+      
+      _calculateTotals();
+      await _saveCart();
+      
+      // Feedback utilisateur
+      Get.snackbar(
+        '✅ Ajouté au panier',
+        '${product.name} (x$quantity)',
+        snackPosition: SnackPosition.BOTTOM,
+        duration: const Duration(seconds: 2),
+        backgroundColor: Colors.green,
+        colorText: Colors.white,
+        icon: const Icon(Icons.shopping_cart_checkout, color: Colors.white),
+      );
+      
+    } catch (e) {
+      debugPrint('❌ Erreur addToCart: $e');
+      Get.snackbar(
+        'Erreur',
+        'Impossible d\'ajouter au panier: $e',
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
     }
   }
-
-  void removeFromCart(String productId) {
-    cartItems.removeWhere((item) => item.productId == productId);
+  
+  /// Met à jour la quantité d'un produit
+  Future<void> updateQuantity(String productId, int newQuantity) async {
+    try {
+      final index = _cartItems.indexWhere((item) => item.productId == productId);
+      
+      if (index >= 0) {
+        final item = _cartItems[index];
+        
+        // Vérifier le stock
+        try {
+          final productDoc = await _firestore
+              .collection('products')
+              .doc(productId)
+              .get();
+          
+          if (productDoc.exists) {
+            final stock = productDoc.data()?['quantity'] ?? 0;
+            final minQty = productDoc.data()?['minOrderQuantity'] ?? 1;
+            
+            if (newQuantity < minQty) {
+              Get.snackbar(
+                'Quantité minimale',
+                'Quantité minimale: $minQty',
+                backgroundColor: Colors.orange,
+                colorText: Colors.white,
+              );
+              return;
+            }
+            
+            if (newQuantity > stock) {
+              Get.snackbar(
+                'Stock insuffisant',
+                'Stock disponible: $stock',
+                backgroundColor: Colors.red,
+                colorText: Colors.white,
+              );
+              return;
+            }
+          }
+        } catch (e) {
+          debugPrint('⚠️ Impossible de vérifier le stock: $e');
+        }
+        
+        _cartItems[index] = item.copyWith(quantity: newQuantity);
+        _calculateTotals();
+        await _saveCart();
+        
+        debugPrint('🔄 Quantité mise à jour pour ${item.productName}: $newQuantity');
+      }
+    } catch (e) {
+      debugPrint('❌ Erreur updateQuantity: $e');
+    }
+  }
+  
+  /// Supprime un produit du panier
+  Future<void> removeFromCart(String productId) async {
+    final item = _cartItems.firstWhereOrNull((item) => item.productId == productId);
+    if (item != null) {
+      _cartItems.removeWhere((item) => item.productId == productId);
+      _calculateTotals();
+      await _saveCart();
+      
+      Get.snackbar(
+        '✅ Retiré du panier',
+        '${item.productName} a été retiré',
+        snackPosition: SnackPosition.BOTTOM,
+        duration: const Duration(seconds: 2),
+      );
+    }
+  }
+  
+  /// Vide complètement le panier
+  Future<void> clearCart() async {
+    _cartItems.clear();
     _calculateTotals();
-    saveCart();
-
+    await _saveCart();
+    
     Get.snackbar(
-      'Panier',
-      'Produit retiré du panier',
+      '✅ Panier vidé',
+      'Tous les produits ont été retirés',
       snackPosition: SnackPosition.BOTTOM,
       duration: const Duration(seconds: 2),
     );
   }
-
-  void clearCart() {
-    cartItems.clear();
-    _calculateTotals();
-    saveCart();
-
-    Get.snackbar(
-      'Panier',
-      'Panier vidé',
-      snackPosition: SnackPosition.BOTTOM,
-      duration: const Duration(seconds: 2),
-    );
+  
+  /// Sauvegarde le panier (local + Firebase)
+  Future<void> _saveCart() async {
+    try {
+      debugPrint('💾 Sauvegarde du panier...');
+      
+      await saveLocalCache(_cartItems);
+      
+      final user = _auth.currentUser;
+      if (user != null) {
+        await _saveCartToFirebase(_cartItems);
+      }
+      
+      debugPrint('✅ Panier sauvegardé');
+    } catch (e) {
+      debugPrint('❌ Erreur sauvegarde panier: $e');
+    }
   }
-
+  
+  /// Calcule les totaux
   void _calculateTotals() {
-    // Calculer le sous-total
-    final calculatedSubtotal =
-        // ignore: avoid_types_as_parameter_names
-        cartItems.fold(0.0, (sum, item) => sum + item.totalPrice);
-    subtotal.value = calculatedSubtotal;
-
-    // Calculer les frais de livraison
-    deliveryFee.value = calculatedSubtotal < 5000 ? 500.0 : 0.0;
-
-    // Calculer le total
-    total.value = calculatedSubtotal + deliveryFee.value;
-
-    // Calculer le nombre total d'articles
-    // ignore: avoid_types_as_parameter_names
-    itemCount.value = cartItems.fold(0, (sum, item) => sum + item.quantity);
+    final calculatedSubtotal = _cartItems.fold(
+      0.0, 
+      (previousSum, item) => previousSum + item.totalPrice
+    );
+    _subtotal.value = calculatedSubtotal;
+    
+    // Frais de livraison: 500FCFA si sous-total < 5000FCFA
+    _deliveryFee.value = calculatedSubtotal < 5000 ? 500.0 : 0.0;
+    
+    _total.value = calculatedSubtotal + _deliveryFee.value;
+    
+    _itemCount.value = _cartItems.fold(
+      0, 
+      (previousSum, item) => previousSum + item.quantity
+    );
+    
+    debugPrint('🧮 Calculs: Sous-total=$calculatedSubtotal, Frais=${_deliveryFee.value}, Total=${_total.value}, Items=${_itemCount.value}');
   }
-
-  bool get isCartEmpty => cartItems.isEmpty;
-
-  List<CartItem> get items => cartItems.toList();
-
-  double get calculatedSubtotal => subtotal.value;
-  double get calculatedDeliveryFee => deliveryFee.value;
-  double get calculatedTotal => total.value;
-
+  
+  /// Récupère un produit spécifique du panier
+  CartItem? getCartItem(String productId) {
+    return _cartItems.firstWhereOrNull((item) => item.productId == productId);
+  }
+  
+  /// Synchronise le panier avec Firebase (à appeler après connexion)
+  Future<void> syncCartAfterLogin() async {
+    try {
+      debugPrint('🔄 Synchronisation après connexion');
+      
+      // Charger depuis Firebase pour écraser le cache local
+      await loadCart(forceRefresh: true);
+      
+    } catch (e) {
+      debugPrint('❌ Erreur synchronisation: $e');
+    }
+  }
+  
+  /// Passe une commande
   Future<void> checkout({
     required String userName,
     required String userPhone,
@@ -264,7 +494,7 @@ class CartService extends GetxService {
       );
       return;
     }
-
+    
     final user = _auth.currentUser;
     if (user == null) {
       Get.snackbar(
@@ -275,60 +505,72 @@ class CartService extends GetxService {
       );
       return;
     }
-
+    
     try {
-      final orderId =
-          'CMD_${DateTime.now().millisecondsSinceEpoch}_${user.uid.substring(0, 8)}';
-
-      final order = Order(
+      final orderId = 'CMD_${DateTime.now().millisecondsSinceEpoch}_${user.uid.substring(0, 8)}';
+      
+      // Créer la commande
+      final order = my_order.Order(
         id: orderId,
         userId: user.uid,
         userName: userName,
         userPhone: userPhone,
         userEmail: userEmail,
-        items: cartItems.toList(),
-        subtotal: subtotal.value,
-        deliveryFee: deliveryFee.value,
-        total: total.value,
+        items: _cartItems.toList(),
+        subtotal: _subtotal.value,
+        deliveryFee: _deliveryFee.value,
+        total: _total.value,
         status: 'pending',
         paymentMethod: paymentMethod,
         deliveryAddress: deliveryAddress,
         notes: notes,
         orderDate: DateTime.now(),
       );
-
-      // 1. Sauvegarder la commande dans Firebase
-      await _firestore.collection('orders').doc(orderId).set(order.toMap());
-
-      // 2. Mettre à jour les statistiques de vente pour chaque produit
-      await _updateProductSales(cartItems);
-
-      // 3. Mettre à jour les stocks des produits
-      await _updateProductStocks(cartItems);
-
-      // 4. Vider le panier
-      clearCart();
-
-      // 5. Sauvegarder aussi dans la collection user_orders pour un accès rapide
-      await _firestore
-          .collection('user_orders')
-          .doc(user.uid)
-          .collection('orders')
-          .doc(orderId)
-          .set(order.toMap());
-
-      Get.snackbar(
-        'Commande réussie',
-        'Votre commande #$orderId a été enregistrée',
-        backgroundColor: Colors.green,
-        colorText: Colors.white,
-        duration: const Duration(seconds: 3),
+      
+      debugPrint('📝 Création commande: $orderId');
+      
+      // Sauvegarder dans Firestore
+      final batch = _firestore.batch();
+      
+      // 1. Sauvegarder dans la collection globale des commandes
+      batch.set(
+        _firestore.collection('orders').doc(orderId),
+        order.toMap()
       );
-
-      // Rediriger vers l'écran de confirmation
-      Get.offNamed('/order-confirmation', arguments: order);
+      
+      // 2. Sauvegarder dans les commandes utilisateur
+      batch.set(
+        _firestore.collection('user_orders').doc(user.uid).collection('orders').doc(orderId),
+        order.toMap()
+      );
+      
+      // 3. Mettre à jour les stocks et ventes
+      for (final item in _cartItems) {
+        final productRef = _firestore.collection('products').doc(item.productId);
+        batch.update(productRef, {
+          'sales': FieldValue.increment(item.quantity),
+          'quantity': FieldValue.increment(-item.quantity),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+        
+        final producerRef = _firestore.collection('users').doc(item.producerId);
+        batch.update(producerRef, {
+          'totalSales': FieldValue.increment(item.totalPrice),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      }
+      
+      await batch.commit();
+      debugPrint('✅ Commande créée et stocks mis à jour');
+      
+      // Vider le panier après commande
+      await clearCart();
+      
+      // Rediriger vers la confirmation
+      Get.offNamed('/buyer/order-confirmation', arguments: order.toMap());
+      
     } catch (e) {
-      print('Erreur lors du checkout: $e');
+      debugPrint('❌ Erreur checkout: $e');
       Get.snackbar(
         'Erreur',
         'Une erreur est survenue lors de la commande: $e',
@@ -337,73 +579,26 @@ class CartService extends GetxService {
       );
     }
   }
-
-  Future<void> _updateProductSales(List<CartItem> items) async {
-    final batch = _firestore.batch();
-
-    for (final item in items) {
-      final productRef = _firestore.collection('products').doc(item.productId);
-
-      // Incrémenter les ventes pour chaque produit
-      batch.update(productRef, {
-        'sales': FieldValue.increment(item.quantity),
-        'stock': FieldValue.increment(-item.quantity), // Réduire le stock
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
-
-      // Mettre à jour aussi les ventes du producteur si nécessaire
-      final producerRef = _firestore.collection('users').doc(item.producerId);
-      batch.update(producerRef, {
-        'totalSales': FieldValue.increment(item.totalPrice),
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
-    }
-
-    await batch.commit();
-  }
-
-  Future<void> _updateProductStocks(List<CartItem> items) async {
-    final batch = _firestore.batch();
-
-    for (final item in items) {
-      final productRef = _firestore.collection('products').doc(item.productId);
-
-      // Récupérer le stock actuel pour vérification
-      final productDoc = await productRef.get();
-      if (productDoc.exists) {
-        final currentStock = productDoc.data()?['stock'] ?? 0;
-        final newStock = currentStock - item.quantity;
-
-        // Mettre à jour le stock
-        batch.update(productRef, {
-          'stock': newStock,
-          'status': newStock <= 0 ? 'out_of_stock' : 'available',
-          'updatedAt': FieldValue.serverTimestamp(),
-        });
-      }
-    }
-
-    await batch.commit();
-  }
-
-  // Méthode pour récupérer les commandes d'un utilisateur
-  Future<List<Order>> getUserOrders() async {
+  
+  /// Récupère les commandes utilisateur
+  Future<List<my_order.Order>> getUserOrders() async {
     try {
       final user = _auth.currentUser;
       if (user == null) return [];
-
+      
       final querySnapshot = await _firestore
           .collection('user_orders')
           .doc(user.uid)
           .collection('orders')
           .orderBy('orderDate', descending: true)
+          .limit(50)
           .get();
-
+      
       return querySnapshot.docs.map((doc) {
-        return Order.fromMap(doc.data());
+        return my_order.Order.fromMap(doc.data());
       }).toList();
     } catch (e) {
-      print('Erreur lors de la récupération des commandes: $e');
+      debugPrint('❌ Erreur récupération commandes: $e');
       return [];
     }
   }

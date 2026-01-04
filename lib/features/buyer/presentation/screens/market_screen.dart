@@ -59,9 +59,9 @@ class _MarketScreenState extends State<MarketScreen> {
                 children: [
                   IconButton(
                     icon: const Icon(Icons.shopping_cart),
-                    onPressed: () => Get.toNamed('buyer/cart'),
+                    onPressed: () => Get.toNamed('/buyer/cart'),
                   ),
-                  if (cartService.itemCount.value > 0)
+                  if (cartService.itemCount > 0) // Sans .value
                     Positioned(
                       right: 8,
                       top: 8,
@@ -76,7 +76,9 @@ class _MarketScreenState extends State<MarketScreen> {
                           minHeight: 16,
                         ),
                         child: Text(
-                          '${cartService.itemCount.value}',
+                          cartService.itemCount > 99
+                              ? '99+'
+                              : cartService.itemCount.toString(), // Sans .value
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 10,

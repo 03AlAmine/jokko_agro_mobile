@@ -1,4 +1,4 @@
-// lib/features/cart/domain/models/order.dart
+// lib/shared/models/order_model.dart
 import 'package:jokko_agro/shared/models/cart_model.dart';
 
 class Order {

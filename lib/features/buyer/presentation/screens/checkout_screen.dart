@@ -1,4 +1,4 @@
-// lib/features/cart/presentation/screens/checkout_screen.dart
+// lib/features/buyer/presentation/screens/checkout_screen.dart
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:jokko_agro/core/constants/colors.dart';
@@ -37,35 +37,35 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               // Section informations personnelles
               _buildSectionTitle('Informations personnelles'),
               _buildPersonalInfoSection(),
-              
+
               const SizedBox(height: 24),
-              
+
               // Section adresse de livraison
               _buildSectionTitle('Adresse de livraison'),
               _buildDeliveryAddressSection(),
-              
+
               const SizedBox(height: 24),
-              
+
               // Section méthode de paiement
               _buildSectionTitle('Méthode de paiement'),
               _buildPaymentMethodSection(),
-              
+
               const SizedBox(height: 24),
-              
+
               // Section notes
               _buildSectionTitle('Notes supplémentaires (optionnel)'),
               _buildNotesSection(),
-              
+
               const SizedBox(height: 32),
-              
+
               // Résumé de la commande
               _buildOrderSummary(),
-              
+
               const SizedBox(height: 32),
-              
+
               // Bouton de confirmation
               _buildConfirmButton(),
-              
+
               const SizedBox(height: 20),
             ],
           ),
@@ -73,7 +73,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       ),
     );
   }
-  
+
   Widget _buildSectionTitle(String title) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
@@ -86,7 +86,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       ),
     );
   }
-  
+
   Widget _buildPersonalInfoSection() {
     return Card(
       child: Padding(
@@ -142,7 +142,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       ),
     );
   }
-  
+
   Widget _buildDeliveryAddressSection() {
     return Card(
       child: Padding(
@@ -178,47 +178,49 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       ),
     );
   }
-  
+
   Widget _buildPaymentMethodSection() {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Obx(() => Column(
-          children: controller.paymentMethods.map((method) {
-            return RadioListTile<String>(
-              title: Row(
-                children: [
-                  Text(method['icon']),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          method['name'],
-                          style: const TextStyle(fontWeight: FontWeight.bold),
+              children: controller.paymentMethods.map((method) {
+                return RadioListTile<String>(
+                  title: Row(
+                    children: [
+                      Text(method['icon']),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              method['name'],
+                              style:
+                                  const TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                            Text(
+                              method['description'],
+                              style: const TextStyle(
+                                  fontSize: 12, color: Colors.grey),
+                            ),
+                          ],
                         ),
-                        Text(
-                          method['description'],
-                          style: const TextStyle(fontSize: 12, color: Colors.grey),
-                        ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-              value: method['id'],
-              groupValue: controller.selectedPaymentMethod.value,
-              onChanged: (value) {
-                controller.selectedPaymentMethod.value = value!;
-              },
-            );
-          }).toList(),
-        )),
+                  value: method['id'],
+                  groupValue: controller.selectedPaymentMethod.value,
+                  onChanged: (value) {
+                    controller.selectedPaymentMethod.value = value!;
+                  },
+                );
+              }).toList(),
+            )),
       ),
     );
   }
-  
+
   Widget _buildNotesSection() {
     return Card(
       child: Padding(
@@ -236,7 +238,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       ),
     );
   }
-  
+
   Widget _buildOrderSummary() {
     return Card(
       child: Padding(
@@ -252,7 +254,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               ),
             ),
             const SizedBox(height: 16),
-            
+
             // Liste des articles
             Obx(() {
               return Column(
@@ -279,16 +281,18 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 }).toList(),
               );
             }),
-            
+
             const Divider(height: 20),
-            
+
             // Totaux
-            _buildSummaryRow('Sous-total', cartService.calculatedSubtotal),
-            _buildSummaryRow('Frais de livraison', cartService.calculatedDeliveryFee),
+            _buildSummaryRow(
+                'Sous-total', cartService.subtotal), // Utiliser subtotal
+            _buildSummaryRow('Frais de livraison',
+                cartService.deliveryFee), // Utiliser deliveryFee
             const Divider(height: 20),
             _buildSummaryRow(
               'Total à payer',
-              cartService.calculatedTotal,
+              cartService.total, // Utiliser total
               isTotal: true,
             ),
           ],
@@ -296,7 +300,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       ),
     );
   }
-  
+
   Widget _buildSummaryRow(String label, double amount, {bool isTotal = false}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
@@ -322,7 +326,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       ),
     );
   }
-  
+
   Widget _buildConfirmButton() {
     return SizedBox(
       width: double.infinity,
@@ -350,11 +354,12 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       ),
     );
   }
-  
+
   void _showConfirmationDialog() {
     Get.defaultDialog(
       title: 'Confirmer la commande',
-      middleText: 'Êtes-vous sûr de vouloir passer cette commande ?\n\nTotal: ${controller.formatPrice(cartService.calculatedTotal)}',
+      middleText:
+          'Êtes-vous sûr de vouloir passer cette commande ?\n\nTotal: ${controller.formatPrice(cartService.total)}', // Utiliser total
       textConfirm: 'Confirmer',
       textCancel: 'Annuler',
       confirmTextColor: Colors.white,

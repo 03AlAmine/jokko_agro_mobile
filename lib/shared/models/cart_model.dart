@@ -1,4 +1,5 @@
-// lib/features/cart/domain/models/cart_item.dart
+// lib/shared/models/cart_model.dart
+import 'dart:convert';
 import 'package:jokko_agro/shared/models/market_model.dart';
 
 class CartItem {
@@ -14,6 +15,8 @@ class CartItem {
   final int minOrderQuantity;
   final String? imageUrl;
   final String? displayEmoji;
+  final String category;
+  final DateTime addedAt;
   
   CartItem({
     required this.id,
@@ -28,9 +31,14 @@ class CartItem {
     required this.minOrderQuantity,
     this.imageUrl,
     this.displayEmoji,
-  });
+    required this.category,
+    DateTime? addedAt,
+  }) : addedAt = addedAt ?? DateTime.now();
   
   double get totalPrice => price * quantity;
+  
+  bool get isLowStock => quantity > stock;
+  bool get meetsMinOrder => quantity >= minOrderQuantity;
   
   CartItem copyWith({
     String? id,
@@ -45,6 +53,8 @@ class CartItem {
     int? minOrderQuantity,
     String? imageUrl,
     String? displayEmoji,
+    String? category,
+    DateTime? addedAt,
   }) {
     return CartItem(
       id: id ?? this.id,
@@ -59,6 +69,8 @@ class CartItem {
       minOrderQuantity: minOrderQuantity ?? this.minOrderQuantity,
       imageUrl: imageUrl ?? this.imageUrl,
       displayEmoji: displayEmoji ?? this.displayEmoji,
+      category: category ?? this.category,
+      addedAt: addedAt ?? this.addedAt,
     );
   }
   
@@ -76,6 +88,8 @@ class CartItem {
       'minOrderQuantity': minOrderQuantity,
       'imageUrl': imageUrl,
       'displayEmoji': displayEmoji,
+      'category': category,
+      'addedAt': addedAt.toIso8601String(),
     };
   }
   
@@ -93,6 +107,10 @@ class CartItem {
       minOrderQuantity: map['minOrderQuantity'] ?? 1,
       imageUrl: map['imageUrl'],
       displayEmoji: map['displayEmoji'],
+      category: map['category'] ?? 'unknown',
+      addedAt: map['addedAt'] != null 
+          ? DateTime.parse(map['addedAt'])
+          : DateTime.now(),
     );
   }
   
@@ -109,6 +127,24 @@ class CartItem {
       stock: product.stock,
       minOrderQuantity: product.minOrderQuantity,
       displayEmoji: product.displayEmoji,
+      category: product.category,
     );
   }
+  
+  String toJson() => json.encode(toMap());
+  factory CartItem.fromJson(String source) => CartItem.fromMap(json.decode(source));
+  
+  @override
+  String toString() {
+    return 'CartItem(id: $id, productName: $productName, quantity: $quantity, totalPrice: $totalPrice)';
+  }
+  
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is CartItem && other.productId == productId;
+  }
+  
+  @override
+  int get hashCode => productId.hashCode;
 }
