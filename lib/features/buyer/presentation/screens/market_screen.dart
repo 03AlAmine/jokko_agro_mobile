@@ -1,8 +1,8 @@
-
 // lib/features/buyer/presentation/screens/market_screen.dart
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:jokko_agro/core/constants/colors.dart';
+import 'package:jokko_agro/core/services/cart_service.dart';
 import 'package:jokko_agro/features/buyer/presentation/controllers/market_controller.dart';
 import 'package:jokko_agro/shared/models/market_model.dart';
 
@@ -16,7 +16,9 @@ class MarketScreen extends StatefulWidget {
 class _MarketScreenState extends State<MarketScreen> {
   final MarketController controller = Get.put(MarketController());
   final _searchController = TextEditingController();
-  
+  final CartService cartService =
+      Get.find<CartService>(); // Ajoutez cette ligne
+
   @override
   void initState() {
     super.initState();
@@ -25,7 +27,7 @@ class _MarketScreenState extends State<MarketScreen> {
       controller.applyFilters();
     });
   }
-  
+
   @override
   void dispose() {
     _searchController.dispose();
@@ -42,29 +44,61 @@ class _MarketScreenState extends State<MarketScreen> {
             icon: const Icon(Icons.filter_alt),
             onPressed: () => _showFilterDialog(),
           ),
-          IconButton(
-            icon: Obx(() => Icon(
-              controller.viewMode.value == 'grid' 
-                ? Icons.grid_view 
-                : Icons.list,
-            )),
-            onPressed: () {
-              controller.viewMode.value = 
-                  controller.viewMode.value == 'grid' ? 'list' : 'grid';
-            },
-          ),
+          Obx(() => IconButton(
+                icon: Icon(
+                  controller.viewMode.value == 'grid'
+                      ? Icons.grid_view
+                      : Icons.list,
+                ),
+                onPressed: () {
+                  controller.viewMode.value =
+                      controller.viewMode.value == 'grid' ? 'list' : 'grid';
+                },
+              )),
+          Obx(() => Stack(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.shopping_cart),
+                    onPressed: () => Get.toNamed('buyer/cart'),
+                  ),
+                  if (cartService.itemCount.value > 0)
+                    Positioned(
+                      right: 8,
+                      top: 8,
+                      child: Container(
+                        padding: const EdgeInsets.all(2),
+                        decoration: BoxDecoration(
+                          color: Colors.red,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        constraints: const BoxConstraints(
+                          minWidth: 16,
+                          minHeight: 16,
+                        ),
+                        child: Text(
+                          '${cartService.itemCount.value}',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ),
+                ],
+              )),
         ],
       ),
       body: Obx(() {
         if (controller.isLoading.value) {
           return _buildLoading();
         }
-        
+
         return _buildContent();
       }),
     );
   }
-  
+
   Widget _buildLoading() {
     return const Center(
       child: Column(
@@ -77,22 +111,19 @@ class _MarketScreenState extends State<MarketScreen> {
       ),
     );
   }
-  
+
   Widget _buildContent() {
     return Column(
       children: [
         // Barre de recherche
         _buildSearchBar(),
-        const SizedBox(height: 8),
-        
+
+        // Statistiques rapides
+        _buildQuickStats(),
+
         // Filtres actifs
-        _buildActiveFilters(),
-        const SizedBox(height: 8),
-        
-        // Statistiques
-        _buildStatsBar(),
-        const SizedBox(height: 16),
-        
+        Obx(() => _buildActiveFilters()),
+
         // Liste/Grid des produits
         Expanded(
           child: _buildProductsView(),
@@ -100,137 +131,226 @@ class _MarketScreenState extends State<MarketScreen> {
       ],
     );
   }
-  
+
   Widget _buildSearchBar() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: TextField(
-        controller: _searchController,
-        decoration: InputDecoration(
-          hintText: 'Rechercher un produit, producteur...',
-          prefixIcon: const Icon(Icons.search),
-          suffixIcon: _searchController.text.isNotEmpty
-              ? IconButton(
-                  icon: const Icon(Icons.clear),
+      padding: const EdgeInsets.all(16),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.withOpacity(0.1),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: Row(
+            children: [
+              const Icon(Icons.search, color: Colors.grey),
+              const SizedBox(width: 8),
+              Expanded(
+                child: TextField(
+                  controller: _searchController,
+                  decoration: const InputDecoration(
+                    hintText: 'Rechercher un produit, producteur...',
+                    border: InputBorder.none,
+                  ),
+                ),
+              ),
+              if (_searchController.text.isNotEmpty)
+                IconButton(
+                  icon: const Icon(Icons.clear, size: 20),
                   onPressed: () {
                     _searchController.clear();
                     controller.searchQuery.value = '';
                     controller.applyFilters();
                   },
-                )
-              : null,
-          filled: true,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(25),
-            borderSide: BorderSide.none,
+                ),
+            ],
           ),
         ),
       ),
     );
   }
-  
+
+  Widget _buildQuickStats() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Row(
+        children: [
+          Expanded(
+              child: _buildStatItem(
+            icon: Icons.inventory,
+            value: controller.totalProducts.toString(),
+            label: 'Produits',
+            color: AppColors.primary,
+          )),
+          const SizedBox(width: 8),
+          Expanded(
+              child: _buildStatItem(
+            icon: Icons.verified,
+            value: controller.certifiedProductsCount.toString(),
+            label: 'Certifiés',
+            color: Colors.green,
+          )),
+          const SizedBox(width: 8),
+          Expanded(
+              child: _buildStatItem(
+            icon: Icons.agriculture,
+            value: controller.uniqueProducersCount.toString(),
+            label: 'Producteurs',
+            color: Colors.orange,
+          )),
+          const SizedBox(width: 8),
+          Expanded(
+              child: _buildStatItem(
+            icon: Icons.star,
+            value: controller.averageProductRating.toStringAsFixed(1),
+            label: 'Note moy.',
+            color: Colors.amber,
+          )),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatItem({
+    required IconData icon,
+    required String value,
+    required String label,
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 20, color: color),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 10,
+              color: Colors.grey,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildActiveFilters() {
-    final hasActiveFilters = 
-        controller.selectedCategory.value != 'all' ||
+    final hasActiveFilters = controller.selectedCategory.value != 'all' ||
         controller.selectedCertification.value != 'all' ||
         controller.selectedSort.value != 'distance' ||
         controller.priceRange.value[0] > 0 ||
         controller.priceRange.value[1] < 100000 ||
         controller.maxDistance.value < 50;
-    
+
     if (!hasActiveFilters) return const SizedBox();
-    
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Row(
-        children: [
-          Chip(
-            label: Text(
-              controller.categories.firstWhere(
-                (c) => c['id'] == controller.selectedCategory.value,
-                orElse: () => {'name': 'Catégorie'},
-              )['name'],
-            ),
-            onDeleted: () {
-              controller.selectedCategory.value = 'all';
-              controller.applyFilters();
-            },
-          ),
-          const SizedBox(width: 8),
-          if (controller.selectedCertification.value != 'all')
-            Chip(
-              label: Text(
-                controller.certifications.firstWhere(
-                  (c) => c['id'] == controller.selectedCertification.value,
-                )['name'],
-              ),
-              onDeleted: () {
-                controller.selectedCertification.value = 'all';
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            _buildActiveFilterChip(
+              label:
+                  controller.getCategoryName(controller.selectedCategory.value),
+              onDelete: () {
+                controller.selectedCategory.value = 'all';
                 controller.applyFilters();
               },
             ),
-          const SizedBox(width: 8),
-          Chip(
-            label: Text('≤ ${controller.maxDistance.value.toInt()} km'),
-            onDeleted: () {
-              controller.maxDistance.value = 50.0;
-              controller.applyFilters();
-            },
-          ),
-          const SizedBox(width: 8),
-          Chip(
-            label: Text(
-              '${controller.priceRange.value[0].toInt()}-${controller.priceRange.value[1].toInt()} FCFA',
-            ),
-            onDeleted: () {
-              controller.priceRange.value = [0.0, 100000.0];
-              controller.applyFilters();
-            },
-          ),
-          const SizedBox(width: 8),
-          TextButton(
-            onPressed: controller.clearFilters,
-            child: const Text('Tout effacer'),
-          ),
-        ],
-      ),
-    );
-  }
-  
-  Widget _buildStatsBar() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      color: Colors.grey[50],
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            '${controller.filteredProducts.length} produits',
-            style: const TextStyle(fontWeight: FontWeight.bold),
-          ),
-          Row(
-            children: [
-              const Icon(Icons.person, size: 16),
-              const SizedBox(width: 4),
-              Text('${controller.uniqueProducersCount} producteurs'),
-              const SizedBox(width: 16),
-              const Icon(Icons.verified, size: 16, color: Colors.green),
-              const SizedBox(width: 4),
-              Text('${controller.certifiedProductsCount} certifiés'),
+            if (controller.selectedCertification.value != 'all') ...[
+              const SizedBox(width: 8),
+              _buildActiveFilterChip(
+                label: _getCertificationName(
+                    controller.selectedCertification.value),
+                onDelete: () {
+                  controller.selectedCertification.value = 'all';
+                  controller.applyFilters();
+                },
+              ),
             ],
-          ),
-        ],
+            const SizedBox(width: 8),
+            _buildActiveFilterChip(
+              label: '≤ ${controller.maxDistance.value.toInt()} km',
+              onDelete: () {
+                controller.maxDistance.value = 50.0;
+                controller.applyFilters();
+              },
+            ),
+            const SizedBox(width: 8),
+            _buildActiveFilterChip(
+              label:
+                  '${controller.priceRange.value[0].toInt()}-${controller.priceRange.value[1].toInt()} FCFA',
+              onDelete: () {
+                controller.priceRange.value = [0.0, 100000.0];
+                controller.applyFilters();
+              },
+            ),
+            const SizedBox(width: 8),
+            TextButton(
+              onPressed: controller.clearFilters,
+              child: const Text('Tout effacer'),
+            ),
+          ],
+        ),
       ),
     );
   }
-  
+
+  String _getCertificationName(String certId) {
+    final cert = controller.certifications.firstWhere(
+      (c) => c['id'] == certId,
+      orElse: () => {'name': certId},
+    );
+    return cert['name'] as String;
+  }
+
+  Widget _buildActiveFilterChip({
+    required String label,
+    required VoidCallback onDelete,
+  }) {
+    return Chip(
+      label: Text(label),
+      deleteIcon: const Icon(Icons.close, size: 16),
+      onDeleted: onDelete,
+    );
+  }
+
   Widget _buildProductsView() {
-    if (controller.filteredProducts.isEmpty) {
-      return _buildEmptyState();
-    }
-    
     return Obx(() {
+      if (controller.filteredProducts.isEmpty) {
+        return _buildEmptyState();
+      }
+
       if (controller.viewMode.value == 'grid') {
         return _buildGridView();
       } else {
@@ -238,7 +358,7 @@ class _MarketScreenState extends State<MarketScreen> {
       }
     });
   }
-  
+
   Widget _buildGridView() {
     return GridView.builder(
       padding: const EdgeInsets.all(16),
@@ -255,7 +375,7 @@ class _MarketScreenState extends State<MarketScreen> {
       },
     );
   }
-  
+
   Widget _buildListView() {
     return ListView.builder(
       padding: const EdgeInsets.all(16),
@@ -266,10 +386,13 @@ class _MarketScreenState extends State<MarketScreen> {
       },
     );
   }
-  
+
   Widget _buildProductCard(MarketProduct product) {
     return Card(
       elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
       child: InkWell(
         onTap: () => controller.viewProductDetails(product),
         borderRadius: BorderRadius.circular(12),
@@ -277,111 +400,137 @@ class _MarketScreenState extends State<MarketScreen> {
           padding: const EdgeInsets.all(12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
             children: [
-              // En-tête avec image/emoji et distance
+              // Icône de catégorie
+              Container(
+                height: 100,
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Center(
+                  child: Icon(
+                    controller.getCategoryIcon(product.category),
+                    size: 40,
+                    color: AppColors.primary,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+
+              // Nom du produit
+              Text(
+                product.name,
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 4),
+
+              // Producteur
+              Text(
+                product.producerName,
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 8),
+
+              // Prix et distance
               Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  CircleAvatar(
-                    backgroundColor: AppColors.primary.withOpacity(0.1),
+                  Flexible(
                     child: Text(
-                      product.displayEmoji ?? '📦',
-                      style: const TextStyle(fontSize: 18),
+                      '${product.price.toInt()} FCFA',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.primary,
+                        fontSize: 14,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          product.name,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        Text(
-                          product.producerName,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.shade50,
+                      borderRadius: BorderRadius.circular(4),
                     ),
-                  ),
-                  Chip(
-                    label: Text('${product.distance.toStringAsFixed(1)} km'),
-                    backgroundColor: Colors.blue[50],
-                    labelStyle: const TextStyle(fontSize: 10),
-                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    child: Text(
+                      '${product.distance.toStringAsFixed(1)} km',
+                      style: const TextStyle(
+                        fontSize: 10,
+                        color: Colors.blue,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      maxLines: 1,
+                    ),
                   ),
                 ],
               ),
               const SizedBox(height: 8),
-              
-              // Prix et unité
-              Row(
-                children: [
-                  Text(
-                    '${product.price.toInt()} FCFA',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.primary,
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    '/${product.unit}',
-                    style: const TextStyle(fontSize: 12, color: Colors.grey),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 4),
-              
-              // Stock et catégorie
-              Text(
-                'Stock: ${product.stock} ${product.unit}',
-                style: const TextStyle(fontSize: 12, color: Colors.grey),
-              ),
-              const SizedBox(height: 4),
-              
-              // Note et avis
+
+              // Note et stock
               Row(
                 children: [
                   const Icon(Icons.star, size: 14, color: Colors.amber),
                   const SizedBox(width: 4),
-                  Text(
-                    product.rating.toStringAsFixed(1),
-                    style: const TextStyle(fontSize: 12),
+                  Flexible(
+                    child: Text(
+                      '${product.rating.toStringAsFixed(1)} (${product.reviews})',
+                      style: const TextStyle(fontSize: 11),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
-                  const SizedBox(width: 4),
-                  Text(
-                    '(${product.reviews})',
-                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                  const Spacer(),
+                  Flexible(
+                    child: Text(
+                      'Stock: ${product.stock}',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: product.stock < 10 ? Colors.red : Colors.green,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
                 ],
               ),
               const SizedBox(height: 8),
-              
+
               // Badges de certification
-              _buildCertificationBadges(product),
-              
-              const Spacer(),
-              
-              // Bouton d'action
+              if (product.isOrganic || product.isCertified || product.isLocal)
+                _buildCertificationBadges(product),
+
+              const SizedBox(height: 12),
+
+              // Bouton d'ajout
               SizedBox(
                 width: double.infinity,
+                height: 32,
                 child: ElevatedButton(
-                  onPressed: () => controller.addToCart(product),
+                  onPressed: () {
+                    controller.addToCart(product);
+                  },
                   style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 8),
                     backgroundColor: AppColors.primary,
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(6),
+                    ),
                   ),
                   child: const Text(
                     'Ajouter',
@@ -395,18 +544,25 @@ class _MarketScreenState extends State<MarketScreen> {
       ),
     );
   }
-  
+
   Widget _buildProductListTile(MarketProduct product) {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: ListTile(
         contentPadding: const EdgeInsets.all(12),
-        leading: CircleAvatar(
-          radius: 24,
-          backgroundColor: AppColors.primary.withOpacity(0.1),
-          child: Text(
-            product.displayEmoji ?? '📦',
-            style: const TextStyle(fontSize: 20),
+        leading: Container(
+          width: 50,
+          height: 50,
+          decoration: BoxDecoration(
+            color: AppColors.primary.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Center(
+            child: Icon(
+              controller.getCategoryIcon(product.category),
+              size: 24,
+              color: AppColors.primary,
+            ),
           ),
         ),
         title: Column(
@@ -414,11 +570,16 @@ class _MarketScreenState extends State<MarketScreen> {
           children: [
             Text(
               product.name,
-              style: const TextStyle(fontWeight: FontWeight.bold),
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
+            const SizedBox(height: 2),
             Text(
               product.producerName,
               style: const TextStyle(fontSize: 12, color: Colors.grey),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ],
         ),
@@ -428,50 +589,87 @@ class _MarketScreenState extends State<MarketScreen> {
             const SizedBox(height: 4),
             Row(
               children: [
-                Text(
-                  '${product.price.toInt()} FCFA/${product.unit}',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.primary,
+                Flexible(
+                  child: Text(
+                    '${product.price.toInt()} FCFA/${product.unit}',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.primary,
+                      fontSize: 12,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                const SizedBox(width: 16),
-                Text(
-                  '${product.distance.toStringAsFixed(1)} km',
-                  style: const TextStyle(fontSize: 12, color: Colors.blue),
+                const SizedBox(width: 8),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade50,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    '${product.distance.toStringAsFixed(1)} km',
+                    style: const TextStyle(
+                      fontSize: 10,
+                      color: Colors.blue,
+                    ),
+                    maxLines: 1,
+                  ),
                 ),
               ],
             ),
             const SizedBox(height: 4),
             Row(
               children: [
-                const Icon(Icons.star, size: 14, color: Colors.amber),
+                const Icon(Icons.star, size: 12, color: Colors.amber),
                 const SizedBox(width: 4),
-                Text(product.rating.toStringAsFixed(1)),
-                const SizedBox(width: 4),
-                Text('(${product.reviews} avis)'),
+                Text(
+                  '${product.rating.toStringAsFixed(1)} (${product.reviews})',
+                  style: const TextStyle(fontSize: 11),
+                ),
                 const SizedBox(width: 8),
                 if (product.isOrganic)
-                  const Icon(Icons.eco, size: 14, color: Colors.green),
+                  const Icon(Icons.eco, size: 12, color: Colors.green),
               ],
             ),
           ],
         ),
         trailing: Column(
           mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Text(
-              'Stock: ${product.stock}',
-              style: const TextStyle(fontSize: 12),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: product.stock > 0
+                    ? Colors.green.shade50
+                    : Colors.red.shade50,
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text(
+                '${product.stock}',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: product.stock > 0 ? Colors.green : Colors.red,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ),
             const SizedBox(height: 4),
-            ElevatedButton(
-              onPressed: () => controller.addToCart(product),
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                backgroundColor: AppColors.primary,
+            SizedBox(
+              width: 70,
+              height: 28,
+              child: ElevatedButton(
+                onPressed: () => controller.addToCart(product),
+                style: ElevatedButton.styleFrom(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  backgroundColor: AppColors.primary,
+                ),
+                child: const Text('Ajouter', style: TextStyle(fontSize: 10)),
               ),
-              child: const Text('Ajouter', style: TextStyle(fontSize: 12)),
             ),
           ],
         ),
@@ -479,27 +677,27 @@ class _MarketScreenState extends State<MarketScreen> {
       ),
     );
   }
-  
+
   Widget _buildCertificationBadges(MarketProduct product) {
     final badges = <Widget>[];
-    
+
     if (product.isOrganic) {
-      badges.add(_buildBadge('🌱 Bio', Colors.green));
+      badges.add(_buildBadge('Bio', Colors.green));
     }
     if (product.isCertified) {
-      badges.add(_buildBadge('✅ Certifié', Colors.blue));
+      badges.add(_buildBadge('Certifié', Colors.blue));
     }
     if (product.isLocal) {
-      badges.add(_buildBadge('📍 Local', Colors.orange));
+      badges.add(_buildBadge('Local', Colors.orange));
     }
-    
+
     return Wrap(
       spacing: 4,
       runSpacing: 4,
       children: badges,
     );
   }
-  
+
   Widget _buildBadge(String text, Color color) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
@@ -511,14 +709,14 @@ class _MarketScreenState extends State<MarketScreen> {
       child: Text(
         text,
         style: TextStyle(
-          fontSize: 10,
+          fontSize: 9,
           color: color,
           fontWeight: FontWeight.w500,
         ),
       ),
     );
   }
-  
+
   Widget _buildEmptyState() {
     return Center(
       child: Padding(
@@ -534,6 +732,7 @@ class _MarketScreenState extends State<MarketScreen> {
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
               ),
+              textAlign: TextAlign.center,
             ),
             const SizedBox(height: 8),
             const Text(
@@ -551,7 +750,7 @@ class _MarketScreenState extends State<MarketScreen> {
       ),
     );
   }
-  
+
   void _showFilterDialog() {
     Get.bottomSheet(
       Container(
@@ -566,6 +765,7 @@ class _MarketScreenState extends State<MarketScreen> {
         child: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
             children: [
               const Text(
                 'Filtres avancés',
@@ -575,118 +775,147 @@ class _MarketScreenState extends State<MarketScreen> {
                 ),
               ),
               const SizedBox(height: 20),
-              
+
               // Catégorie
-              const Text('Catégorie', style: TextStyle(fontWeight: FontWeight.bold)),
-              Wrap(
-                spacing: 8,
-                children: controller.categories.map((category) {
-                  return ChoiceChip(
-                    label: Text('${category['icon']} ${category['name']}'),
-                    selected: controller.selectedCategory.value == category['id'],
-                    onSelected: (selected) {
-                      controller.selectedCategory.value = category['id'];
-                      controller.applyFilters();
-                      if (selected) Get.back();
-                    },
-                  );
-                }).toList(),
-              ),
-              
+              const Text('Catégorie',
+                  style: TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              Obx(() => Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: controller.categories.map((category) {
+                      final categoryId = category['id'] as String;
+                      final categoryName = category['name'] as String;
+                      final categoryIcon = category['icon'] as IconData;
+
+                      return ChoiceChip(
+                        label: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(categoryIcon, size: 16),
+                            const SizedBox(width: 4),
+                            Text(categoryName),
+                          ],
+                        ),
+                        selected:
+                            controller.selectedCategory.value == categoryId,
+                        onSelected: (selected) {
+                          controller.selectedCategory.value = categoryId;
+                        },
+                      );
+                    }).toList(),
+                  )),
+
               const SizedBox(height: 20),
-              
+
               // Certification
-              const Text('Certification', style: TextStyle(fontWeight: FontWeight.bold)),
-              Wrap(
-                spacing: 8,
-                children: controller.certifications.map((cert) {
-                  return FilterChip(
-                    label: Text(cert['name']),
-                    selected: controller.selectedCertification.value == cert['id'],
-                    onSelected: (selected) {
-                      controller.selectedCertification.value = cert['id'];
-                      controller.applyFilters();
-                    },
-                  );
-                }).toList(),
-              ),
-              
+              const Text('Certification',
+                  style: TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              Obx(() => Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: controller.certifications.map((cert) {
+                      final certId = cert['id'] as String;
+                      final certName = cert['name'] as String;
+
+                      return FilterChip(
+                        label: Text(certName),
+                        selected:
+                            controller.selectedCertification.value == certId,
+                        onSelected: (selected) {
+                          controller.selectedCertification.value = certId;
+                        },
+                      );
+                    }).toList(),
+                  )),
+
               const SizedBox(height: 20),
-              
+
               // Distance maximale
-              const Text('Distance maximale (km)', style: TextStyle(fontWeight: FontWeight.bold)),
+              const Text('Distance maximale (km)',
+                  style: TextStyle(fontWeight: FontWeight.bold)),
               Obx(() => Column(
-                children: [
-                  Slider(
-                    value: controller.maxDistance.value,
-                    min: 1,
-                    max: 100,
-                    divisions: 10,
-                    label: '${controller.maxDistance.value.toInt()} km',
-                    onChanged: (value) {
-                      controller.maxDistance.value = value;
-                    },
-                    onChangeEnd: (_) => controller.applyFilters(),
-                  ),
-                  Text('Jusqu\'à ${controller.maxDistance.value.toInt()} km'),
-                ],
-              )),
-              
+                    children: [
+                      Slider(
+                        value: controller.maxDistance.value,
+                        min: 1,
+                        max: 100,
+                        divisions: 10,
+                        label: '${controller.maxDistance.value.toInt()} km',
+                        onChanged: (value) {
+                          controller.maxDistance.value = value;
+                        },
+                      ),
+                      Text(
+                          'Jusqu\'à ${controller.maxDistance.value.toInt()} km'),
+                    ],
+                  )),
+
               const SizedBox(height: 20),
-              
+
               // Plage de prix
-              const Text('Plage de prix (FCFA)', style: TextStyle(fontWeight: FontWeight.bold)),
+              const Text('Plage de prix (FCFA)',
+                  style: TextStyle(fontWeight: FontWeight.bold)),
               Obx(() => RangeSlider(
-                values: RangeValues(
-                  controller.priceRange.value[0], 
-                  controller.priceRange.value[1],
-                ),
-                min: 0,
-                max: 100000,
-                divisions: 10,
-                labels: RangeLabels(
-                  '${controller.priceRange.value[0].toInt()}',
-                  '${controller.priceRange.value[1].toInt()}',
-                ),
-                onChanged: (values) {
-                  controller.priceRange.value = [values.start, values.end];
-                },
-                onChangeEnd: (_) => controller.applyFilters(),
-              )),
-              
-              const SizedBox(height: 20),
-              
-              // Options de tri
-              const Text('Trier par', style: TextStyle(fontWeight: FontWeight.bold)),
-              Column(
-                children: controller.sortOptions.map((option) {
-                  return RadioListTile<String>(
-                    title: Text(option['name']),
-                    value: option['id'],
-                    groupValue: controller.selectedSort.value,
-                    onChanged: (value) {
-                      controller.selectedSort.value = value!;
-                      controller.applyFilters();
+                    values: RangeValues(
+                      controller.priceRange.value[0],
+                      controller.priceRange.value[1],
+                    ),
+                    min: 0,
+                    max: 100000,
+                    divisions: 10,
+                    labels: RangeLabels(
+                      '${controller.priceRange.value[0].toInt()}',
+                      '${controller.priceRange.value[1].toInt()}',
+                    ),
+                    onChanged: (values) {
+                      controller.priceRange.value = [values.start, values.end];
                     },
-                  );
-                }).toList(),
-              ),
-              
+                  )),
+
+              const SizedBox(height: 20),
+
+              // Options de tri
+              const Text('Trier par',
+                  style: TextStyle(fontWeight: FontWeight.bold)),
+              Obx(() => Column(
+                    children: controller.sortOptions.map((option) {
+                      final optionId = option['id'] as String;
+                      final optionName = option['name'] as String;
+
+                      return RadioListTile<String>(
+                        title: Text(optionName),
+                        value: optionId,
+                        groupValue: controller.selectedSort.value,
+                        onChanged: (value) {
+                          controller.selectedSort.value = value!;
+                        },
+                      );
+                    }).toList(),
+                  )),
+
               const SizedBox(height: 30),
-              
+
               // Boutons d'action
               Row(
                 children: [
                   Expanded(
                     child: OutlinedButton(
-                      onPressed: controller.clearFilters,
+                      onPressed: () {
+                        controller.clearFilters();
+                        Get.back();
+                      },
                       child: const Text('Tout effacer'),
                     ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: ElevatedButton(
-                      onPressed: Get.back,
+                      onPressed: () {
+                        controller.applyFilters();
+                        Get.back();
+                      },
                       child: const Text('Appliquer'),
                     ),
                   ),
@@ -699,4 +928,3 @@ class _MarketScreenState extends State<MarketScreen> {
     );
   }
 }
-

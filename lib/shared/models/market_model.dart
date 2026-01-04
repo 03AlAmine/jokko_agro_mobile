@@ -1,4 +1,3 @@
-
 // lib/shared/models/market_model.dart
 import 'package:jokko_agro/shared/models/product_model.dart';
 
@@ -68,7 +67,7 @@ class MarketProduct {
       name: product.name,
       producerName: product.producerName,
       producerId: product.producerId,
-      producerRating: 4.5, // À implémenter plus tard
+      producerRating: 4.5,
       price: product.price,
       unit: product.unit,
       quantity: product.quantity,
@@ -86,8 +85,8 @@ class MarketProduct {
       distance: distance,
       rating: rating,
       reviews: reviews,
-      stock: product.quantity, // Le stock est la quantité totale
-      displayEmoji: _getCategoryEmoji(product.category),
+      stock: product.quantity,
+      displayEmoji: _getCategoryEmoji(product.category), // Retourne un emoji
     );
   }
   
