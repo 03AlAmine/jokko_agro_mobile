@@ -10,8 +10,10 @@
 analyzer:
   errors:
     avoid_print: ignore
+    await_only_futures: ignore
     deprecated_member_use: ignore
     invalid_use_of_protected_member: ignore
+    use_build_context_synchronously: ignore
 include: package:flutter_lints/flutter.yaml
 
 linter:

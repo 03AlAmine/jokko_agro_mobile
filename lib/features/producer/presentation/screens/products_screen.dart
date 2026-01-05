@@ -1,9 +1,10 @@
 // lib/features/producer/presentation/screens/products_screen.dart
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:jokko_agro/core/constants/colors.dart';
 import 'package:jokko_agro/shared/models/product_model.dart';
 import 'package:jokko_agro/features/producer/presentation/controllers/products_controller.dart';
+import 'package:jokko_agro/core/constants/producer_theme.dart';
+import 'package:jokko_agro/core/widgets/producer_widgets.dart';
 
 class ProductsScreen extends StatefulWidget {
   const ProductsScreen({super.key});
@@ -26,161 +27,137 @@ class _ProductsScreenState extends State<ProductsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Mes produits'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.add),
-            onPressed: () => Get.toNamed('/producer/add-product'),
-          ),
-        ],
-      ),
-      body: Obx(() {
-        if (controller.isLoading.value) {
-          return const Center(child: CircularProgressIndicator());
-        }
-
-        return _buildContent();
-      }),
+      appBar: _buildAppBar(),
+      body: _buildBody(),
+      floatingActionButton: _buildFloatingActionButton(),
     );
   }
 
-  Widget _buildContent() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Statistiques rapides
-          _buildStatsSection(),
-          const SizedBox(height: 20),
-
-          // Barre de filtres
-          _buildFiltersSection(),
-          const SizedBox(height: 20),
-
-          // En-tête de la section
-          _buildSectionHeader(),
-          const SizedBox(height: 16),
-
-          // Liste des produits
-          _buildProductsList(),
-
-          // Conseils
-          const SizedBox(height: 30),
-          _buildTipsSection(),
-        ],
-      ),
+  AppBar _buildAppBar() {
+    return AppBar(
+      title: const Text('Mes produits'),
+      centerTitle: true,
+      backgroundColor: ProducerTheme.producerPrimary,
+      foregroundColor: Colors.white,
+      elevation: 0,
+      actions: [
+        IconButton(
+          icon: const Icon(Icons.filter_list_outlined),
+          onPressed: _showFilterDialog,
+          tooltip: 'Filtres',
+        ),
+        IconButton(
+          icon: const Icon(Icons.add),
+          onPressed: () => Get.toNamed('/producer/add-product'),
+          tooltip: 'Ajouter un produit',
+        ),
+      ],
     );
+  }
+
+  Widget _buildBody() {
+    return Obx(() {
+      if (controller.isLoading.value) {
+        return const Center(
+          child: CircularProgressIndicator(
+            color: ProducerTheme.producerPrimary,
+          ),
+        );
+      }
+
+      return RefreshIndicator(
+        color: ProducerTheme.producerPrimary,
+        onRefresh: () => controller.loadProducts(),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Statistiques rapides
+              _buildStatsSection(),
+              const SizedBox(height: 20),
+
+              // Barre de recherche et filtres
+              _buildSearchAndFiltersSection(),
+              const SizedBox(height: 20),
+
+              // En-tête de la section produits
+              _buildSectionHeader(),
+              const SizedBox(height: 16),
+
+              // Liste des produits
+              _buildProductsList(),
+
+              // Conseils et astuces
+              if (controller.filteredProducts.isNotEmpty)
+                _buildTipsSection(),
+            ],
+          ),
+        ),
+      );
+    });
   }
 
   Widget _buildStatsSection() {
     return Row(
       children: [
         Expanded(
-          child: _buildStatCard(
-            icon: '📦',
+          child: ProducerStatCard(
             value: controller.totalProductsCount.toString(),
-            label: 'Produits au total',
-            color: AppColors.primary,
+            label: 'Produits total',
+            icon: Icons.inventory_2_outlined,
+            color: ProducerTheme.producerPrimary,
           ),
         ),
         const SizedBox(width: 12),
         Expanded(
-          child: _buildStatCard(
-            icon: '✅',
+          child: ProducerStatCard(
             value: controller.availableProductsCount.toString(),
             label: 'Disponibles',
-            color: AppColors.success,
+            icon: Icons.check_circle_outline,
+            color: ProducerTheme.producerSuccess,
           ),
         ),
         const SizedBox(width: 12),
         Expanded(
-          child: _buildStatCard(
-            icon: '💰',
-            value: '${controller.totalValueSum.toInt()} FCFA',
+          child: ProducerStatCard(
+            value: '${controller.totalValueSum.toInt()}',
             label: 'Valeur totale',
-            color: AppColors.warning,
+            icon: Icons.attach_money_outlined,
+            color: ProducerTheme.producerWarning,
           ),
         ),
       ],
     );
   }
 
-  Widget _buildStatCard({
-    required String icon,
-    required String value,
-    required String label,
-    required Color color,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(icon, style: const TextStyle(fontSize: 24)),
-          const SizedBox(height: 8),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: color,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 12,
-              color: Colors.grey,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFiltersSection() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
+  Widget _buildSearchAndFiltersSection() {
+    return ProducerCard(
       child: Column(
         children: [
           // Barre de recherche
           TextField(
             decoration: InputDecoration(
               hintText: 'Rechercher un produit...',
-              prefixIcon: const Icon(Icons.search),
+              prefixIcon: const Icon(Icons.search_outlined),
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: ProducerTheme.inputBorderRadius,
+                borderSide: BorderSide(color: Colors.grey.shade300),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: ProducerTheme.inputBorderRadius,
+                borderSide: BorderSide(color: Colors.grey.shade300),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: ProducerTheme.inputBorderRadius,
+                borderSide: const BorderSide(color: ProducerTheme.producerPrimary),
               ),
               contentPadding: const EdgeInsets.symmetric(
                 horizontal: 12,
                 vertical: 14,
               ),
-              isDense: true, // AJOUTEZ CECI
+              filled: true,
+              fillColor: Colors.grey.shade50,
             ),
             onChanged: (value) {
               controller.searchQuery.value = value;
@@ -189,154 +166,159 @@ class _ProductsScreenState extends State<ProductsScreen> {
           ),
           const SizedBox(height: 16),
 
-          // Filtres - version responsive
-          LayoutBuilder(
-            builder: (context, constraints) {
-              // Sur mobile, afficher en colonne
-              if (constraints.maxWidth < 600) {
-                return Column(
-                  children: [
-                    _buildCategoryDropdown(),
-                    const SizedBox(height: 12),
-                    _buildStatusDropdown(),
-                    const SizedBox(height: 12),
-                    _buildSortDropdown(),
-                  ],
-                );
-              }
-              // Sur tablette/desktop, afficher en ligne
-              return Row(
-                children: [
-                  Expanded(child: _buildCategoryDropdown()),
-                  const SizedBox(width: 12),
-                  Expanded(child: _buildStatusDropdown()),
-                  const SizedBox(width: 12),
-                  Expanded(child: _buildSortDropdown()),
-                ],
-              );
-            },
-          ),
+          // Filtres rapides
+          _buildQuickFilters(),
         ],
       ),
     );
   }
 
-// Méthodes séparées pour chaque dropdown
-  Widget _buildCategoryDropdown() {
-    return Obx(() => DropdownButtonFormField<String>(
-          decoration: InputDecoration(
-            labelText: 'Catégorie',
-            border: OutlineInputBorder(
+  Widget _buildQuickFilters() {
+    return Obx(() {
+      return Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: [
+          // Filtre par catégorie
+          FilterChip(
+            label: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.category_outlined, size: 16),
+                const SizedBox(width: 4),
+                Text(controller.selectedCategory.value != 'all'
+                    ? controller.categories
+                        .firstWhere((c) => c['id'] == controller.selectedCategory.value)['name'] as String
+                    : 'Catégorie'),
+              ],
+            ),
+            selected: controller.selectedCategory.value != 'all',
+            onSelected: (_) => _showCategoryFilter(),
+            backgroundColor: Colors.grey.shade100,
+            selectedColor: ProducerTheme.producerPrimary.withOpacity(0.2),
+            labelStyle: TextStyle(
+              color: controller.selectedCategory.value != 'all'
+                  ? ProducerTheme.producerPrimary
+                  : Colors.grey[700],
+              fontWeight: controller.selectedCategory.value != 'all'
+                  ? FontWeight.w600
+                  : FontWeight.normal,
+            ),
+            shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(8),
             ),
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 12,
-              vertical: 12,
-            ),
-            isDense: true,
           ),
-          value: controller.selectedCategory.value,
-          items: controller.categories.map((category) {
-            return DropdownMenuItem<String>(
-              value: category['id'],
-              child: Text(
-                '${category['icon']} ${category['name']}',
-                overflow: TextOverflow.ellipsis, // AJOUTEZ CECI
-              ),
-            );
-          }).toList(),
-          onChanged: (value) {
-            if (value != null) {
-              controller.selectedCategory.value = value;
-              controller.applyFilters();
-            }
-          },
-          isExpanded: true, // TRÈS IMPORTANT: permet au dropdown de s'adapter
-        ));
-  }
 
-  Widget _buildStatusDropdown() {
-    return Obx(() => DropdownButtonFormField<String>(
-          decoration: InputDecoration(
-            labelText: 'Statut',
-            border: OutlineInputBorder(
+          // Filtre par statut
+          FilterChip(
+            label: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.circle_outlined, size: 16),
+                const SizedBox(width: 4),
+                Text(controller.selectedStatus.value != 'all'
+                    ? controller.statuses
+                        .firstWhere((s) => s['id'] == controller.selectedStatus.value)['name'] as String
+                    : 'Statut'),
+              ],
+            ),
+            selected: controller.selectedStatus.value != 'all',
+            onSelected: (_) => _showStatusFilter(),
+            backgroundColor: Colors.grey.shade100,
+            selectedColor: ProducerTheme.producerSecondary.withOpacity(0.2),
+            labelStyle: TextStyle(
+              color: controller.selectedStatus.value != 'all'
+                  ? ProducerTheme.producerSecondary
+                  : Colors.grey[700],
+              fontWeight: controller.selectedStatus.value != 'all'
+                  ? FontWeight.w600
+                  : FontWeight.normal,
+            ),
+            shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(8),
             ),
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 12,
-              vertical: 12,
-            ),
-            isDense: true,
           ),
-          value: controller.selectedStatus.value,
-          items: controller.statuses.map((status) {
-            return DropdownMenuItem<String>(
-              value: status['id'],
-              child: Text(
-                status['name'],
-                overflow: TextOverflow.ellipsis,
-              ),
-            );
-          }).toList(),
-          onChanged: (value) {
-            if (value != null) {
-              controller.selectedStatus.value = value;
-              controller.applyFilters();
-            }
-          },
-          isExpanded: true,
-        ));
-  }
 
-  Widget _buildSortDropdown() {
-    return Obx(() => DropdownButtonFormField<String>(
-          decoration: InputDecoration(
-            labelText: 'Trier par',
-            border: OutlineInputBorder(
+          // Filtre par tri
+          FilterChip(
+            label: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.sort_outlined, size: 16),
+                const SizedBox(width: 4),
+                Text(controller.sortOptions
+                    .firstWhere((s) => s['id'] == controller.sortBy.value)['name'] as String),
+              ],
+            ),
+            selected: controller.sortBy.value != 'recent',
+            onSelected: (_) => _showSortFilter(),
+            backgroundColor: Colors.grey.shade100,
+            selectedColor: ProducerTheme.producerInfo.withOpacity(0.2),
+            labelStyle: TextStyle(
+              color: controller.sortBy.value != 'recent'
+                  ? ProducerTheme.producerInfo
+                  : Colors.grey[700],
+              fontWeight: controller.sortBy.value != 'recent'
+                  ? FontWeight.w600
+                  : FontWeight.normal,
+            ),
+            shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(8),
             ),
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 12,
-              vertical: 12,
-            ),
-            isDense: true,
           ),
-          value: controller.sortBy.value,
-          items: controller.sortOptions.map((option) {
-            return DropdownMenuItem<String>(
-              value: option['id'],
-              child: Text(
-                option['name'],
-                overflow: TextOverflow.ellipsis,
+
+          // Bouton réinitialiser
+          if (controller.selectedCategory.value != 'all' ||
+              controller.selectedStatus.value != 'all' ||
+              controller.sortBy.value != 'recent' ||
+              controller.searchQuery.value.isNotEmpty)
+            ActionChip(
+              label: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.refresh, size: 16),
+                  SizedBox(width: 4),
+                  Text('Réinitialiser'),
+                ],
               ),
-            );
-          }).toList(),
-          onChanged: (value) {
-            if (value != null) {
-              controller.sortBy.value = value;
-              controller.applyFilters();
-            }
-          },
-          isExpanded: true,
-        ));
+              onPressed: () {
+                controller.selectedCategory.value = 'all';
+                controller.selectedStatus.value = 'all';
+                controller.sortBy.value = 'recent';
+                controller.searchQuery.value = '';
+                controller.applyFilters();
+              },
+              backgroundColor: Colors.grey.shade100,
+              labelStyle: const TextStyle(color: Colors.grey),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+        ],
+      );
+    });
   }
 
   Widget _buildSectionHeader() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          'Produits (${controller.filteredProducts.length})',
-          style: const TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
+    return ProducerSectionHeader(
+      title: 'Produits (${controller.filteredProducts.length})',
+      subtitle: 'Liste de tous vos produits',
+      action: Row(
+        children: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: () => controller.loadProducts(),
+            tooltip: 'Actualiser',
+            iconSize: 20,
           ),
-        ),
-        IconButton(
-          icon: const Icon(Icons.refresh),
-          onPressed: () => controller.loadProducts(),
-        ),
-      ],
+          IconButton(
+            icon: const Icon(Icons.download_outlined),
+            onPressed: _exportProducts,
+            tooltip: 'Exporter',
+            iconSize: 20,
+          ),
+        ],
+      ),
     );
   }
 
@@ -361,10 +343,10 @@ class _ProductsScreenState extends State<ProductsScreen> {
     final statusInfo = controller.getStatusInfo(product.status);
     final totalValue = product.price * product.quantity;
 
-    return Card(
+    return Container(
       margin: const EdgeInsets.only(bottom: 16),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
+      child: ProducerCard(
+        onTap: () => controller.viewProduct(product.id),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -377,12 +359,12 @@ class _ProductsScreenState extends State<ProductsScreen> {
                   width: 50,
                   height: 50,
                   decoration: BoxDecoration(
-                    color: AppColors.primary.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(10),
+                    color: ProducerTheme.producerPrimary.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
                   ),
                   child: Center(
                     child: Text(
-                      category['icon'] ?? '📦',
+                      category['icon'] as String? ?? '📦',
                       style: const TextStyle(fontSize: 24),
                     ),
                   ),
@@ -397,52 +379,41 @@ class _ProductsScreenState extends State<ProductsScreen> {
                           Expanded(
                             child: Text(
                               product.name,
-                              style: const TextStyle(
+                              style: ProducerTheme.headlineSmall.copyWith(
                                 fontSize: 16,
-                                fontWeight: FontWeight.bold,
                               ),
+                              maxLines: 1,
                             ),
                           ),
+                          const SizedBox(width: 8),
                           Container(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 8,
                               vertical: 4,
                             ),
                             decoration: BoxDecoration(
-                              color: statusInfo['color']?.withOpacity(0.1),
+                              color: (statusInfo['color'] as Color?)?.withOpacity(0.1),
                               borderRadius: BorderRadius.circular(6),
                               border: Border.all(
-                                color: statusInfo['color'] ?? Colors.grey,
+                                color: statusInfo['color'] as Color? ?? Colors.grey,
                               ),
                             ),
                             child: Text(
-                              statusInfo['text'] ?? '',
+                              statusInfo['text'] as String? ?? '',
                               style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w500,
-                                color: statusInfo['color'],
+                                color: statusInfo['color'] as Color?,
                               ),
                             ),
                           ),
                         ],
                       ),
                       const SizedBox(height: 4),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.grey.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          category['name'] ?? product.category,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey,
-                          ),
-                        ),
+                      ProducerTag(
+                        label: category['name'] as String? ?? product.category,
+                        icon: Icons.category_outlined,
+                        color: Colors.grey,
                       ),
                     ],
                   ),
@@ -457,22 +428,25 @@ class _ProductsScreenState extends State<ProductsScreen> {
                 product.description!.length > 100
                     ? '${product.description!.substring(0, 100)}...'
                     : product.description!,
-                style: const TextStyle(color: Colors.grey),
+                style: ProducerTheme.bodySmall,
+                maxLines: 2,
               ),
 
             const SizedBox(height: 12),
 
-            // Détails
+            // Détails prix et quantité
             _buildProductDetails(product, totalValue),
             const SizedBox(height: 12),
 
-            // Stats
+            // Statistiques
             _buildProductStats(product),
             const SizedBox(height: 12),
 
             // Tags
-            _buildProductTags(product),
-            const SizedBox(height: 16),
+            if (product.isOrganic || (product.certifications?.isNotEmpty ?? false))
+              _buildProductTags(product),
+            if (product.isOrganic || (product.certifications?.isNotEmpty ?? false))
+              const SizedBox(height: 12),
 
             // Actions
             _buildProductActions(product),
@@ -491,13 +465,14 @@ class _ProductsScreenState extends State<ProductsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     'Prix unitaire',
-                    style: TextStyle(fontSize: 12, color: Colors.grey),
+                    style: ProducerTheme.caption,
                   ),
+                  const SizedBox(height: 2),
                   Text(
                     '${product.price.toInt()} FCFA/${product.unit}',
-                    style: const TextStyle(
+                    style: ProducerTheme.bodyMedium.copyWith(
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -508,13 +483,16 @@ class _ProductsScreenState extends State<ProductsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Quantité',
-                    style: TextStyle(fontSize: 12, color: Colors.grey),
+                  Text(
+                    'Quantité en stock',
+                    style: ProducerTheme.caption,
                   ),
+                  const SizedBox(height: 2),
                   Text(
                     '${product.quantity} ${product.unit}',
-                    style: const TextStyle(fontWeight: FontWeight.bold),
+                    style: ProducerTheme.bodyMedium.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ],
               ),
@@ -524,15 +502,21 @@ class _ProductsScreenState extends State<ProductsScreen> {
         const SizedBox(height: 8),
         Row(
           children: [
-            const Text(
+            const Icon(
+              Icons.account_balance_wallet_outlined,
+              size: 16,
+              color: Colors.grey,
+            ),
+            const SizedBox(width: 4),
+            Text(
               'Valeur totale: ',
-              style: TextStyle(fontSize: 12, color: Colors.grey),
+              style: ProducerTheme.caption,
             ),
             Text(
               '${totalValue.toInt()} FCFA',
-              style: const TextStyle(
+              style: ProducerTheme.bodyMedium.copyWith(
                 fontWeight: FontWeight.bold,
-                color: AppColors.primary,
+                color: ProducerTheme.producerPrimary,
               ),
             ),
           ],
@@ -542,50 +526,68 @@ class _ProductsScreenState extends State<ProductsScreen> {
   }
 
   Widget _buildProductStats(Product product) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceAround,
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          _buildStatItem(
+            icon: Icons.sell_outlined,
+            value: '${product.sales}',
+            label: 'Ventes',
+            color: ProducerTheme.producerSuccess,
+          ),
+          _buildStatItem(
+            icon: Icons.star_outlined,
+            value: product.rating.toStringAsFixed(1),
+            label: 'Note',
+            color: ProducerTheme.producerWarning,
+          ),
+          _buildStatItem(
+            icon: Icons.remove_red_eye_outlined,
+            value: '${product.views}',
+            label: 'Vues',
+            color: ProducerTheme.producerInfo,
+          ),
+          _buildStatItem(
+            icon: Icons.calendar_today_outlined,
+            value: controller.formatDate(product.updatedAt),
+            label: 'Modifié',
+            color: Colors.grey,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatItem({
+    required IconData icon,
+    required String value,
+    required String label,
+    required Color color,
+  }) {
+    return Column(
       children: [
-        Column(
-          children: [
-            const Icon(Icons.sell, size: 20, color: Colors.grey),
-            const SizedBox(height: 4),
-            Text(
-              '${product.sales}',
-              style: const TextStyle(fontWeight: FontWeight.bold),
-            ),
-            const Text(
-              'ventes',
-              style: TextStyle(fontSize: 10, color: Colors.grey),
-            ),
-          ],
+        Icon(
+          icon,
+          size: 18,
+          color: color,
         ),
-        Column(
-          children: [
-            const Icon(Icons.star, size: 20, color: Colors.grey),
-            const SizedBox(height: 4),
-            Text(
-              product.rating.toStringAsFixed(1),
-              style: const TextStyle(fontWeight: FontWeight.bold),
-            ),
-            const Text(
-              'note',
-              style: TextStyle(fontSize: 10, color: Colors.grey),
-            ),
-          ],
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: ProducerTheme.bodySmall.copyWith(
+            fontWeight: FontWeight.bold,
+            color: Colors.grey[800],
+          ),
         ),
-        Column(
-          children: [
-            const Icon(Icons.calendar_today, size: 20, color: Colors.grey),
-            const SizedBox(height: 4),
-            Text(
-              controller.formatDate(product.updatedAt),
-              style: const TextStyle(fontWeight: FontWeight.bold),
-            ),
-            const Text(
-              'modifié',
-              style: TextStyle(fontSize: 10, color: Colors.grey),
-            ),
-          ],
+        Text(
+          label,
+          style: ProducerTheme.caption,
         ),
       ],
     );
@@ -595,26 +597,46 @@ class _ProductsScreenState extends State<ProductsScreen> {
     final tags = <Widget>[];
 
     if (product.isOrganic) {
-      tags.add(_buildTag('🌱 Bio', AppColors.success));
+      tags.add(
+        const ProducerTag(
+          label: 'Bio',
+          icon: Icons.eco_outlined,
+          color: ProducerTheme.producerSuccess,
+          filled: true,
+        ),
+      );
     }
 
     if (product.certifications != null) {
       for (var cert in product.certifications!) {
         String text = '';
+        IconData iconData;
+        
         switch (cert) {
           case 'local':
-            text = '📍 Local';
+            text = 'Local';
+            iconData = Icons.location_on_outlined;
             break;
           case 'fairtrade':
-            text = '⚖️ Équitable';
+            text = 'Équitable';
+            iconData = Icons.handshake_outlined;
             break;
           case 'seasonal':
-            text = '🌞 Saison';
+            text = 'Saison';
+            iconData = Icons.wb_sunny_outlined;
             break;
           default:
             text = cert;
+            iconData = Icons.verified_outlined;
         }
-        tags.add(_buildTag(text, AppColors.secondary));
+        
+        tags.add(
+          ProducerTag(
+            label: text,
+            icon: iconData,
+            color: ProducerTheme.producerSecondary,
+          ),
+        );
       }
     }
 
@@ -625,100 +647,98 @@ class _ProductsScreenState extends State<ProductsScreen> {
     );
   }
 
-  Widget _buildTag(String text, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: color.withOpacity(0.3)),
-      ),
-      child: Text(
-        text,
-        style: TextStyle(
-          fontSize: 12,
-          color: color,
-          fontWeight: FontWeight.w500,
-        ),
-      ),
-    );
-  }
-
   Widget _buildProductActions(Product product) {
     return Row(
       children: [
         Expanded(
           child: OutlinedButton.icon(
             onPressed: () => controller.editProduct(product.id),
-            icon: const Icon(Icons.edit, size: 16),
+            icon: const Icon(Icons.edit_outlined, size: 16),
             label: const Text('Modifier'),
             style: OutlinedButton.styleFrom(
-              foregroundColor: AppColors.primary,
+              foregroundColor: ProducerTheme.producerPrimary,
+              side: BorderSide(color: ProducerTheme.producerPrimary.withOpacity(0.5)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
             ),
           ),
         ),
         const SizedBox(width: 8),
         Expanded(
           child: OutlinedButton.icon(
-            onPressed: () => controller.viewProduct(product.id),
-            icon: const Icon(Icons.visibility, size: 16),
-            label: const Text('Voir'),
+            onPressed: () => controller.toggleProductStatus(product),
+            icon: Icon(
+              product.status == 'available'
+                  ? Icons.pause_circle_outline
+                  : Icons.play_circle_outline,
+              size: 16,
+            ),
+            label: Text(
+              product.status == 'available' ? 'Pause' : 'Activer',
+            ),
             style: OutlinedButton.styleFrom(
-              foregroundColor: AppColors.secondary,
+              foregroundColor: product.status == 'available'
+                  ? ProducerTheme.producerWarning
+                  : ProducerTheme.producerSuccess,
+              side: BorderSide(
+                color: product.status == 'available'
+                    ? ProducerTheme.producerWarning.withOpacity(0.5)
+                    : ProducerTheme.producerSuccess.withOpacity(0.5),
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
             ),
           ),
         ),
         const SizedBox(width: 8),
         PopupMenuButton<String>(
-          icon: const Icon(Icons.more_vert),
+          icon: const Icon(Icons.more_vert_outlined),
           onSelected: (value) {
             switch (value) {
+              case 'view':
+                controller.viewProduct(product.id);
+                break;
               case 'duplicate':
                 controller.duplicateProduct(product.id);
-                break;
-              case 'toggle_status':
-                controller.toggleProductStatus(product);
                 break;
               case 'delete':
                 controller.deleteProduct(product.id);
                 break;
             }
           },
-          itemBuilder: (context) => [
-            const PopupMenuItem(
+          itemBuilder: (context) => const [
+            PopupMenuItem(
+              value: 'view',
+              child: Row(
+                children: [
+                  Icon(Icons.visibility_outlined, size: 18),
+                  SizedBox(width: 8),
+                  Text('Voir détails'),
+                ],
+              ),
+            ),
+            PopupMenuItem(
               value: 'duplicate',
               child: Row(
                 children: [
-                  Icon(Icons.copy, size: 18),
+                  Icon(Icons.copy_outlined, size: 18),
                   SizedBox(width: 8),
                   Text('Dupliquer'),
                 ],
               ),
             ),
             PopupMenuItem(
-              value: 'toggle_status',
-              child: Row(
-                children: [
-                  Icon(
-                    product.status == 'available'
-                        ? Icons.pause
-                        : Icons.check_circle,
-                    size: 18,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(product.status == 'available'
-                      ? 'Marquer épuisé'
-                      : 'Réactiver'),
-                ],
-              ),
-            ),
-            const PopupMenuItem(
               value: 'delete',
               child: Row(
                 children: [
-                  Icon(Icons.delete, color: Colors.red, size: 18),
+                  Icon(Icons.delete_outline, color: Colors.red, size: 18),
                   SizedBox(width: 8),
-                  Text('Supprimer'),
+                  Text(
+                    'Supprimer',
+                    style: TextStyle(color: Colors.red),
+                  ),
                 ],
               ),
             ),
@@ -730,30 +750,41 @@ class _ProductsScreenState extends State<ProductsScreen> {
 
   Widget _buildEmptyState() {
     return Container(
-      padding: const EdgeInsets.all(40),
+      padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
       child: Column(
         children: [
-          const Text('📦', style: TextStyle(fontSize: 60)),
-          const SizedBox(height: 16),
-          const Text(
-            'Aucun produit trouvé',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            controller.products.isEmpty
-                ? 'Vous n\'avez pas encore ajouté de produits.'
-                : 'Aucun produit ne correspond à vos critères de recherche.',
-            textAlign: TextAlign.center,
-            style: const TextStyle(color: Colors.grey),
+          Icon(
+            Icons.inventory_2_outlined,
+            size: 80,
+            color: Colors.grey.shade300,
           ),
           const SizedBox(height: 20),
-          ElevatedButton(
+          Text(
+            'Aucun produit trouvé',
+            style: ProducerTheme.headlineMedium,
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 12),
+          Text(
+            controller.products.isEmpty
+                ? 'Vous n\'avez pas encore ajouté de produits.\nCommencez par ajouter votre premier produit !'
+                : 'Aucun produit ne correspond à vos critères de recherche.',
+            textAlign: TextAlign.center,
+            style: ProducerTheme.bodyMedium.copyWith(color: Colors.grey),
+          ),
+          const SizedBox(height: 24),
+          ElevatedButton.icon(
             onPressed: () => Get.toNamed('/producer/add-product'),
-            child: const Text('➕ Ajouter votre premier produit'),
+            icon: const Icon(Icons.add),
+            label: const Text('Ajouter un produit'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: ProducerTheme.producerPrimary,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
           ),
         ],
       ),
@@ -761,45 +792,398 @@ class _ProductsScreenState extends State<ProductsScreen> {
   }
 
   Widget _buildTipsSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          '💡 Conseils de gestion',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 12),
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: AppColors.primary.withOpacity(0.05),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+    return ProducerCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
             children: [
-              _buildTipItem(
-                  '• Mettez à jour régulièrement les quantités en stock'),
-              _buildTipItem(
-                  '• Utilisez des descriptions détaillées pour vos produits'),
-              _buildTipItem(
-                  '• Activez les certifications pour augmenter la confiance'),
-              _buildTipItem(
-                  '• Surveillez les ventes pour réapprovisionner à temps'),
+              const Icon(
+                Icons.lightbulb_outline,
+                color: ProducerTheme.producerWarning,
+                size: 24,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Conseils de gestion',
+                style: ProducerTheme.bodyMedium.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ],
           ),
-        ),
-      ],
+          const SizedBox(height: 12),
+          const Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _TipItem(
+                '• Mettez à jour régulièrement les quantités en stock',
+              ),
+              _TipItem(
+                '• Utilisez des photos de qualité pour attirer les acheteurs',
+              ),
+              _TipItem(
+                '• Activez les certifications pour augmenter la confiance',
+              ),
+              _TipItem(
+                '• Surveillez les ventes pour réapprovisionner à temps',
+              ),
+              _TipItem(
+                '• Répondez rapidement aux questions des acheteurs',
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
-  static Widget _buildTipItem(String text) {
+  Widget _buildFloatingActionButton() {
+    return FloatingActionButton.extended(
+      onPressed: () => Get.toNamed('/producer/add-product'),
+      backgroundColor: ProducerTheme.producerPrimary,
+      foregroundColor: Colors.white,
+      elevation: 4,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      ),
+      icon: const Icon(Icons.add),
+      label: const Text('Nouveau produit'),
+    );
+  }
+
+  void _showFilterDialog() {
+    showModalBottomSheet(
+      context: Get.context!,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      isScrollControlled: true,
+      builder: (context) {
+        return Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              const ProducerSectionHeader(
+                title: 'Filtres avancés',
+                subtitle: 'Affinez votre recherche',
+              ),
+              const SizedBox(height: 20),
+              _buildCategoryDropdown(),
+              const SizedBox(height: 16),
+              _buildStatusDropdown(),
+              const SizedBox(height: 16),
+              _buildSortDropdown(),
+              const SizedBox(height: 24),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () {
+                        controller.selectedCategory.value = 'all';
+                        controller.selectedStatus.value = 'all';
+                        controller.sortBy.value = 'recent';
+                        controller.searchQuery.value = '';
+                        controller.applyFilters();
+                        Get.back();
+                      },
+                      child: const Text('Réinitialiser'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () {
+                        controller.applyFilters();
+                        Get.back();
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: ProducerTheme.producerPrimary,
+                      ),
+                      child: const Text('Appliquer'),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildCategoryDropdown() {
+    return Obx(() => DropdownButtonFormField<String>(
+          decoration: InputDecoration(
+            labelText: 'Catégorie',
+            border: OutlineInputBorder(
+              borderRadius: ProducerTheme.inputBorderRadius,
+            ),
+            prefixIcon: const Icon(Icons.category_outlined),
+            filled: true,
+            fillColor: Colors.grey.shade50,
+          ),
+          value: controller.selectedCategory.value,
+          items: controller.categories.map<DropdownMenuItem<String>>((category) {
+            return DropdownMenuItem<String>(
+              value: category['id'] as String,
+              child: Row(
+                children: [
+                  Text(category['icon'] as String),
+                  const SizedBox(width: 12),
+                  Text(category['name'] as String),
+                ],
+              ),
+            );
+          }).toList(),
+          onChanged: (value) {
+            if (value != null) {
+              controller.selectedCategory.value = value;
+            }
+          },
+        ));
+  }
+
+  Widget _buildStatusDropdown() {
+    return Obx(() => DropdownButtonFormField<String>(
+          decoration: InputDecoration(
+            labelText: 'Statut',
+            border: OutlineInputBorder(
+              borderRadius: ProducerTheme.inputBorderRadius,
+            ),
+            prefixIcon: const Icon(Icons.circle_outlined),
+            filled: true,
+            fillColor: Colors.grey.shade50,
+          ),
+          value: controller.selectedStatus.value,
+          items: controller.statuses.map<DropdownMenuItem<String>>((status) {
+            return DropdownMenuItem<String>(
+              value: status['id'] as String,
+              child: Text(status['name'] as String),
+            );
+          }).toList(),
+          onChanged: (value) {
+            if (value != null) {
+              controller.selectedStatus.value = value;
+            }
+          },
+        ));
+  }
+
+  Widget _buildSortDropdown() {
+    return Obx(() => DropdownButtonFormField<String>(
+          decoration: InputDecoration(
+            labelText: 'Trier par',
+            border: OutlineInputBorder(
+              borderRadius: ProducerTheme.inputBorderRadius,
+            ),
+            prefixIcon: const Icon(Icons.sort_outlined),
+            filled: true,
+            fillColor: Colors.grey.shade50,
+          ),
+          value: controller.sortBy.value,
+          items: controller.sortOptions.map<DropdownMenuItem<String>>((option) {
+            return DropdownMenuItem<String>(
+              value: option['id'] as String,
+              child: Text(option['name'] as String),
+            );
+          }).toList(),
+          onChanged: (value) {
+            if (value != null) {
+              controller.sortBy.value = value;
+            }
+          },
+        ));
+  }
+
+  void _showCategoryFilter() {
+    showModalBottomSheet(
+      context: Get.context!,
+      builder: (context) {
+        return Container(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const ProducerSectionHeader(
+                title: 'Catégories',
+                subtitle: 'Filtrer par catégorie',
+              ),
+              const SizedBox(height: 16),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: controller.categories.map((category) {
+                  final isSelected =
+                      controller.selectedCategory.value == category['id'];
+                  return FilterChip(
+                    label: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(category['icon'] as String),
+                        const SizedBox(width: 6),
+                        Text(category['name'] as String),
+                      ],
+                    ),
+                    selected: isSelected,
+                    onSelected: (_) {
+                      controller.selectedCategory.value = category['id'] as String;
+                      controller.applyFilters();
+                      Get.back();
+                    },
+                    selectedColor: ProducerTheme.producerPrimary.withOpacity(0.2),
+                    backgroundColor: Colors.grey.shade100,
+                    labelStyle: TextStyle(
+                      color: isSelected
+                          ? ProducerTheme.producerPrimary
+                          : Colors.grey[700],
+                      fontWeight:
+                          isSelected ? FontWeight.w600 : FontWeight.normal,
+                    ),
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 20),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showStatusFilter() {
+    showModalBottomSheet(
+      context: Get.context!,
+      builder: (context) {
+        return Container(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const ProducerSectionHeader(
+                title: 'Statuts',
+                subtitle: 'Filtrer par statut',
+              ),
+              const SizedBox(height: 16),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: controller.statuses.map((status) {
+                  final isSelected = controller.selectedStatus.value == status['id'];
+                  return FilterChip(
+                    label: Text(status['name'] as String),
+                    selected: isSelected,
+                    onSelected: (_) {
+                      controller.selectedStatus.value = status['id'] as String;
+                      controller.applyFilters();
+                      Get.back();
+                    },
+                    selectedColor: ProducerTheme.producerSecondary.withOpacity(0.2),
+                    backgroundColor: Colors.grey.shade100,
+                    labelStyle: TextStyle(
+                      color: isSelected
+                          ? ProducerTheme.producerSecondary
+                          : Colors.grey[700],
+                      fontWeight:
+                          isSelected ? FontWeight.w600 : FontWeight.normal,
+                    ),
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 20),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showSortFilter() {
+    showModalBottomSheet(
+      context: Get.context!,
+      builder: (context) {
+        return Container(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const ProducerSectionHeader(
+                title: 'Trier par',
+                subtitle: 'Sélectionnez un critère de tri',
+              ),
+              const SizedBox(height: 16),
+              Column(
+                children: controller.sortOptions.map((option) {
+                  final isSelected = controller.sortBy.value == option['id'];
+                  return RadioListTile<String>(
+                    title: Text(option['name'] as String),
+                    value: option['id'] as String,
+                    groupValue: controller.sortBy.value,
+                    onChanged: (value) {
+                      if (value != null) {
+                        controller.sortBy.value = value;
+                        controller.applyFilters();
+                        Get.back();
+                      }
+                    },
+                    activeColor: ProducerTheme.producerPrimary,
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 20),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _exportProducts() {
+    // Implémenter l'export des produits
+    Get.snackbar(
+      'Exportation',
+      'Exportation des produits en cours...',
+      backgroundColor: ProducerTheme.producerInfo,
+      colorText: Colors.white,
+      snackPosition: SnackPosition.BOTTOM,
+    );
+  }
+}
+
+class _TipItem extends StatelessWidget {
+  final String text;
+
+  const _TipItem(this.text);
+
+  @override
+  Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Text(text, style: const TextStyle(color: Colors.grey)),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              text,
+              style: ProducerTheme.bodySmall.copyWith(color: Colors.grey[600]),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
