@@ -1,6 +1,6 @@
 // lib/features/producer/core/widgets/producer_widgets.dart
 import 'package:flutter/material.dart';
-import 'package:jokko_agro/core/constants/producer_theme.dart';
+import 'package:jokko_agro/core/themes/producer_theme.dart';
 
 class ProducerCard extends StatelessWidget {
   final Widget child;
@@ -27,9 +27,7 @@ class ProducerCard extends StatelessWidget {
           color: backgroundColor ?? Colors.white,
           borderRadius: ProducerTheme.cardBorderRadius,
           boxShadow: elevated ? ProducerTheme.cardShadow : null,
-          border: !elevated
-              ? Border.all(color: Colors.grey.shade200)
-              : null,
+          border: !elevated ? Border.all(color: Colors.grey.shade200) : null,
         ),
         padding: padding,
         child: child,
@@ -106,41 +104,51 @@ class ProducerStatCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return ProducerCard(
       elevated: true,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(10),
+      child: SizedBox(
+        height: 100, // Hauteur fixe
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Container(
+                  width: 36, // Plus petit
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    icon,
+                    color: iconColor ?? color,
+                    size: 20, // Plus petit
+                  ),
                 ),
-                child: Icon(
-                  icon,
-                  color: iconColor ?? color,
-                  size: 24,
+                Flexible(
+                  child: Text(
+                    value,
+                    style: TextStyle(
+                      fontSize: 18, // Plus petit
+                      fontWeight: FontWeight.bold,
+                      color: color,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
-              ),
-              Text(
-                value,
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: color,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            label,
-            style: ProducerTheme.bodySmall,
-          ),
-        ],
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(
+              label,
+              style:
+                  ProducerTheme.bodySmall.copyWith(fontSize: 11), // Plus petit
+              overflow: TextOverflow.ellipsis,
+              maxLines: 1,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -175,47 +183,52 @@ class ProducerActionButton extends StatelessWidget {
         child: InkWell(
           onTap: onPressed,
           borderRadius: ProducerTheme.buttonBorderRadius,
-          child: Container(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        color.withOpacity(0.9),
-                        color,
-                      ],
+          child: SizedBox(
+            height: 90, // Hauteur fixe pour éviter l'overflow
+            child: Padding(
+              padding: const EdgeInsets.all(12), // Padding réduit
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Container(
+                    width: 40, // Taille réduite
+                    height: 40,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          color.withOpacity(0.9),
+                          color,
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(10),
                     ),
-                    borderRadius: BorderRadius.circular(12),
+                    child: Icon(
+                      icon,
+                      color: Colors.white,
+                      size: 22, // Taille réduite
+                    ),
                   ),
-                  child: Icon(
-                    icon,
-                    color: Colors.white,
-                    size: 28,
+                  const SizedBox(height: 8),
+                  Text(
+                    label,
+                    textAlign: TextAlign.center,
+                    style: ProducerTheme.bodySmall.copyWith(
+                      // Plus petit
+                      fontWeight: FontWeight.w500,
+                    ),
+                    maxLines: 2, // Limiter à 2 lignes
+                    overflow: TextOverflow.ellipsis,
                   ),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  label,
-                  textAlign: TextAlign.center,
-                  style: ProducerTheme.bodyMedium.copyWith(
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
       ),
     );
 
-    return fullWidth
-        ? SizedBox(width: double.infinity, child: button)
-        : button;
+    return fullWidth ? SizedBox(width: double.infinity, child: button) : button;
   }
 }
 

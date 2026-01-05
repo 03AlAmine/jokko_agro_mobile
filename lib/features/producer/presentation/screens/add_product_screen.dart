@@ -2,7 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:jokko_agro/features/producer/presentation/controllers/add_product_controller.dart';
-import 'package:jokko_agro/core/constants/producer_theme.dart';
+import 'package:jokko_agro/core/themes/producer_theme.dart';
 import 'package:jokko_agro/core/widgets/producer_widgets.dart';
 
 

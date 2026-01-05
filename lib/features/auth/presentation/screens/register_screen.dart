@@ -1,4 +1,4 @@
-// lib/features/auth/presentation/screens/register_screen.dart - MODIFIÉ
+// lib/features/auth/presentation/screens/register_screen.dart - STYLISÉ
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:jokko_agro/core/constants/colors.dart';
@@ -13,7 +13,7 @@ class RegisterScreen extends StatefulWidget {
 
 class _RegisterScreenState extends State<RegisterScreen> {
   final _formKey = GlobalKey<FormState>();
-  final AuthService _authService = AuthService();
+  final AuthService _authService = Get.find<AuthService>();
   
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -22,14 +22,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _fullNameController = TextEditingController();
   
   String _selectedRole = 'buyer';
-  String _selectedLocation = ''; // Ajout pour la localisation
+  String _selectedLocation = '';
   bool _isLoading = false;
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
+  final _pageController = PageController();
+  int _currentPage = 0;
 
-  // Liste des régions du Sénégal
   final List<String> _locations = [
-    'Sélectionnez votre région',
     'Dakar',
     'Thiès',
     'Saint-Louis',
@@ -45,21 +45,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
     'Autre région'
   ];
 
-  Future<void> _redirectBasedOnRole() async {
-    final role = await _authService.getUserRole();
-    if (role == 'producer') {
-      Get.offAllNamed('/producer/dashboard');
-    } else if (role == 'buyer') {
-      Get.offAllNamed('/buyer/dashboard');
-    } else {
-      Get.offAllNamed('/role-selection');
-    }
-  }
-
   Future<void> _register() async {
     if (_formKey.currentState!.validate()) {
-      // Validation de la localisation
-      if (_selectedLocation.isEmpty || _selectedLocation == 'Sélectionnez votre région') {
+      if (_selectedLocation.isEmpty) {
         Get.snackbar(
           'Erreur',
           'Veuillez sélectionner votre localisation',
@@ -82,17 +70,23 @@ class _RegisterScreenState extends State<RegisterScreen> {
       setState(() => _isLoading = true);
       
       try {
-        // Créer un objet utilisateur avec la localisation
         await _authService.register(
           email: _emailController.text.trim(),
           password: _passwordController.text,
           phone: _phoneController.text.trim(),
           fullName: _fullNameController.text.trim(),
           role: _selectedRole,
-          location: _selectedLocation, // Ajout de la localisation
+          location: _selectedLocation,
         );
         
-        await _redirectBasedOnRole();
+        final role = await _authService.getUserRole();
+        if (role == 'producer') {
+          Get.offAllNamed('/producer/dashboard');
+        } else if (role == 'buyer') {
+          Get.offAllNamed('/buyer/dashboard');
+        } else {
+          Get.offAllNamed('/role-selection');
+        }
         
       } catch (e) {
         Get.snackbar(
@@ -107,289 +101,504 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
   }
 
+  void _nextPage() {
+    if (_currentPage < 2) {
+      _pageController.nextPage(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
+      setState(() => _currentPage++);
+    }
+  }
+
+  void _previousPage() {
+    if (_currentPage > 0) {
+      _pageController.previousPage(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
+      setState(() => _currentPage--);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Inscription'),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
           onPressed: () => Get.back(),
         ),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 20),
-              Text(
-                'Créer un compte',
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  color: AppColors.textPrimary,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Rejoignez la communauté Jokko Agro',
-                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  color: AppColors.textSecondary,
-                ),
-              ),
-              const SizedBox(height: 40),
-              
-              // Nom complet
-              TextFormField(
-                controller: _fullNameController,
-                decoration: const InputDecoration(
-                  labelText: 'Nom complet *',
-                  prefixIcon: Icon(Icons.person_outline),
-                  border: OutlineInputBorder(),
-                ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Veuillez entrer votre nom complet';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 20),
-              
-              // Téléphone
-              TextFormField(
-                controller: _phoneController,
-                decoration: const InputDecoration(
-                  labelText: 'Numéro de téléphone *',
-                  prefixIcon: Icon(Icons.phone_outlined),
-                  border: OutlineInputBorder(),
-                  hintText: '77 123 45 67',
-                ),
-                keyboardType: TextInputType.phone,
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Veuillez entrer votre numéro de téléphone';
-                  }
-                  final cleanPhone = value.replaceAll(RegExp(r'\s+'), '');
-                  if (!RegExp(r'^(77|78|70|76)[0-9]{7}$').hasMatch(cleanPhone)) {
-                    return 'Numéro invalide (format: 77 123 45 67)';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 20),
-              
-              // Email
-              TextFormField(
-                controller: _emailController,
-                decoration: const InputDecoration(
-                  labelText: 'Email *',
-                  prefixIcon: Icon(Icons.email_outlined),
-                  border: OutlineInputBorder(),
-                ),
-                keyboardType: TextInputType.emailAddress,
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Veuillez entrer votre email';
-                  }
-                  if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+').hasMatch(value)) {
-                    return 'Email invalide';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 20),
-              
-              // Localisation
-              DropdownButtonFormField<String>(
-                value: _selectedLocation.isNotEmpty 
-                    ? _selectedLocation 
-                    : 'Sélectionnez votre région',
-                decoration: const InputDecoration(
-                  labelText: 'Localisation *',
-                  prefixIcon: Icon(Icons.location_on_outlined),
-                  border: OutlineInputBorder(),
-                ),
-                items: _locations.map((location) {
-                  return DropdownMenuItem<String>(
-                    value: location,
-                    child: Text(location),
-                  );
-                }).toList(),
-                onChanged: (value) {
-                  if (value != null && value != 'Sélectionnez votre région') {
-                    setState(() {
-                      _selectedLocation = value;
-                    });
-                  }
-                },
-                validator: (value) {
-                  if (value == null || 
-                      value.isEmpty || 
-                      value == 'Sélectionnez votre région') {
-                    return 'Veuillez sélectionner votre localisation';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 20),
-              
-              // Sélection du rôle
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Je suis : *',
-                    style: TextStyle(
-                      color: AppColors.textPrimary,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
+      body: SafeArea(
+        child: Column(
+          children: [
+            // Indicateur de progression
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(3, (index) {
+                  return Container(
+                    width: index == _currentPage ? 32 : 8,
+                    height: 8,
+                    margin: const EdgeInsets.symmetric(horizontal: 4),
+                    decoration: BoxDecoration(
+                      color: index <= _currentPage
+                          ? AppColors.primary
+                          : Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(4),
                     ),
-                  ),
-                  const SizedBox(height: 10),
-                  SegmentedButton<String>(
-                    segments: const [
-                      ButtonSegment<String>(
-                        value: 'buyer',
-                        label: Text('Acheteur 🛒'),
+                  );
+                }),
+              ),
+            ),
+
+            // Titre
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+              child: Text(
+                _currentPage == 0
+                    ? 'Informations personnelles'
+                    : _currentPage == 1
+                        ? 'Localisation et rôle'
+                        : 'Sécurité du compte',
+                style: const TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+            ),
+
+            // Formulaire paginé
+            Expanded(
+              child: Form(
+                key: _formKey,
+                child: PageView(
+                  controller: _pageController,
+                  physics: const NeverScrollableScrollPhysics(),
+                  children: [
+                    // Page 1: Informations personnelles
+                    _buildPersonalInfoPage(),
+                    
+                    // Page 2: Localisation et rôle
+                    _buildLocationRolePage(),
+                    
+                    // Page 3: Sécurité
+                    _buildSecurityPage(),
+                  ],
+                ),
+              ),
+            ),
+
+            // Boutons de navigation
+            Padding(
+              padding: const EdgeInsets.all(24),
+              child: Row(
+                children: [
+                  if (_currentPage > 0)
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: _previousPage,
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          side: BorderSide(color: AppColors.primary.withOpacity(0.3)),
+                        ),
+                        child: const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.arrow_back, size: 20),
+                            SizedBox(width: 8),
+                            Text('Précédent'),
+                          ],
+                        ),
                       ),
-                      ButtonSegment<String>(
-                        value: 'producer',
-                        label: Text('Producteur 👨‍🌾'),
+                    ),
+                  if (_currentPage > 0) const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: _currentPage < 2 ? _nextPage : _register,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
-                    ],
-                    selected: {_selectedRole},
-                    onSelectionChanged: (Set<String> newSelection) {
-                      setState(() {
-                        _selectedRole = newSelection.first;
-                      });
-                    },
+                      child: _isLoading
+                          ? const SizedBox(
+                              height: 24,
+                              width: 24,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation(Colors.white),
+                              ),
+                            )
+                          : Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  _currentPage < 2 ? 'Continuer' : 'Créer mon compte',
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                if (_currentPage < 2)
+                                  const SizedBox(width: 8),
+                                if (_currentPage < 2)
+                                  const Icon(Icons.arrow_forward, size: 20),
+                              ],
+                            ),
+                    ),
                   ),
                 ],
               ),
-              const SizedBox(height: 20),
-              
-              // Mot de passe
-              TextFormField(
-                controller: _passwordController,
-                decoration: InputDecoration(
-                  labelText: 'Mot de passe *',
-                  prefixIcon: const Icon(Icons.lock_outline),
-                  suffixIcon: IconButton(
-                    icon: Icon(
-                      _obscurePassword
-                          ? Icons.visibility_off
-                          : Icons.visibility,
-                    ),
-                    onPressed: () {
-                      setState(() => _obscurePassword = !_obscurePassword);
-                    },
-                  ),
-                  border: const OutlineInputBorder(),
-                  hintText: '••••••••',
-                ),
-                obscureText: _obscurePassword,
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Veuillez entrer un mot de passe';
-                  }
-                  if (value.length < 6) {
-                    return 'Le mot de passe doit contenir au moins 6 caractères';
-                  }
-                  return null;
-                },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPersonalInfoPage() {
+    return ListView(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+      children: [
+        // Nom complet
+        _buildFormField(
+          label: 'Nom complet',
+          icon: Icons.person_outline,
+          controller: _fullNameController,
+          validator: (value) {
+            if (value == null || value.isEmpty) {
+              return 'Veuillez entrer votre nom complet';
+            }
+            return null;
+          },
+        ),
+        const SizedBox(height: 20),
+
+        // Téléphone
+        _buildFormField(
+          label: 'Numéro de téléphone',
+          icon: Icons.phone_outlined,
+          controller: _phoneController,
+          keyboardType: TextInputType.phone,
+          validator: (value) {
+            if (value == null || value.isEmpty) {
+              return 'Veuillez entrer votre numéro';
+            }
+            final cleanPhone = value.replaceAll(RegExp(r'\s+'), '');
+            if (!RegExp(r'^(77|78|70|76)[0-9]{7}$').hasMatch(cleanPhone)) {
+              return 'Numéro invalide (ex: 77 123 45 67)';
+            }
+            return null;
+          },
+        ),
+        const SizedBox(height: 20),
+
+        // Email
+        _buildFormField(
+          label: 'Adresse email',
+          icon: Icons.email_outlined,
+          controller: _emailController,
+          keyboardType: TextInputType.emailAddress,
+          validator: (value) {
+            if (value == null || value.isEmpty) {
+              return 'Veuillez entrer votre email';
+            }
+            if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+').hasMatch(value)) {
+              return 'Email invalide';
+            }
+            return null;
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLocationRolePage() {
+    return ListView(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+      children: [
+        // Localisation
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Localisation',
+              style: TextStyle(
+                fontWeight: FontWeight.w500,
+                color: AppColors.textPrimary,
+                fontSize: 14,
               ),
-              const SizedBox(height: 20),
-              
-              // Confirmation mot de passe
-              TextFormField(
-                controller: _confirmPasswordController,
-                decoration: InputDecoration(
-                  labelText: 'Confirmer le mot de passe *',
-                  prefixIcon: const Icon(Icons.lock_outline),
-                  suffixIcon: IconButton(
-                    icon: Icon(
-                      _obscureConfirmPassword
-                          ? Icons.visibility_off
-                          : Icons.visibility,
-                    ),
-                    onPressed: () {
-                      setState(() => _obscureConfirmPassword = !_obscureConfirmPassword);
-                    },
-                  ),
-                  border: const OutlineInputBorder(),
-                  hintText: '••••••••',
-                ),
-                obscureText: _obscureConfirmPassword,
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Veuillez confirmer votre mot de passe';
-                  }
-                  return null;
-                },
+            ),
+            const SizedBox(height: 8),
+            Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey.shade300),
               ),
-              const SizedBox(height: 30),
-              
-              // Bouton d'inscription
-              SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton(
-                  onPressed: _isLoading ? null : _register,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<String>(
+                  value: _selectedLocation.isNotEmpty 
+                      ? _selectedLocation 
+                      : null,
+                  hint: const Padding(
+                    padding: EdgeInsets.only(left: 16),
+                    child: Text('Sélectionnez votre région'),
+                  ),
+                  icon: const Padding(
+                    padding: EdgeInsets.only(right: 16),
+                    child: Icon(Icons.arrow_drop_down),
+                  ),
+                  isExpanded: true,
+                  items: _locations.map((location) {
+                    return DropdownMenuItem<String>(
+                      value: location,
+                      child: Padding(
+                        padding: const EdgeInsets.only(left: 16),
+                        child: Text(location),
+                      ),
+                    );
+                  }).toList(),
+                  onChanged: (value) {
+                    if (value != null) {
+                      setState(() => _selectedLocation = value);
+                    }
+                  },
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 30),
+
+        // Rôle
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Je suis',
+              style: TextStyle(
+                fontWeight: FontWeight.w500,
+                color: AppColors.textPrimary,
+                fontSize: 14,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: ChoiceChip(
+                    label: const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.shopping_cart, size: 18),
+                        SizedBox(width: 8),
+                        Text('Acheteur'),
+                      ],
+                    ),
+                    selected: _selectedRole == 'buyer',
+                    selectedColor: AppColors.primary,
+                    onSelected: (selected) {
+                      if (selected) {
+                        setState(() => _selectedRole = 'buyer');
+                      }
+                    },
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  child: _isLoading
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation(Colors.white),
-                          ),
-                        )
-                      : const Text(
-                          'Créer mon compte',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
                 ),
-              ),
-              const SizedBox(height: 20),
-              
-              // Lien de connexion
-              Center(
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Text(
-                      'Vous avez déjà un compte ? ',
-                      style: TextStyle(color: AppColors.textSecondary),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ChoiceChip(
+                    label: const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.agriculture, size: 18),
+                        SizedBox(width: 8),
+                        Text('Producteur'),
+                      ],
                     ),
-                    TextButton(
-                      onPressed: () => Get.offNamed('/login'),
-                      child: const Text(
-                        'Se connecter',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.primary,
-                        ),
-                      ),
+                    selected: _selectedRole == 'producer',
+                    selectedColor: AppColors.primary,
+                    onSelected: (selected) {
+                      if (selected) {
+                        setState(() => _selectedRole = 'producer');
+                      }
+                    },
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                  ],
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSecurityPage() {
+    return ListView(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+      children: [
+        // Mot de passe
+        _buildPasswordField(
+          label: 'Mot de passe',
+          controller: _passwordController,
+          obscureText: _obscurePassword,
+          onToggleVisibility: () {
+            setState(() => _obscurePassword = !_obscurePassword);
+          },
+          validator: (value) {
+            if (value == null || value.isEmpty) {
+              return 'Veuillez entrer un mot de passe';
+            }
+            if (value.length < 6) {
+              return 'Minimum 6 caractères';
+            }
+            return null;
+          },
+        ),
+        const SizedBox(height: 20),
+
+        // Confirmation mot de passe
+        _buildPasswordField(
+          label: 'Confirmer le mot de passe',
+          controller: _confirmPasswordController,
+          obscureText: _obscureConfirmPassword,
+          onToggleVisibility: () {
+            setState(() => _obscureConfirmPassword = !_obscureConfirmPassword);
+          },
+          validator: (value) {
+            if (value == null || value.isEmpty) {
+              return 'Veuillez confirmer votre mot de passe';
+            }
+            return null;
+          },
+        ),
+        const SizedBox(height: 20),
+
+        // Indicateur de sécurité
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade50,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.grey.shade200),
+          ),
+          child: const Row(
+            children: [
+              Icon(Icons.info_outline, color: AppColors.primary, size: 20),
+              SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Utilisez un mot de passe fort avec au moins 6 caractères',
+                  style: TextStyle(fontSize: 12, color: Colors.grey),
                 ),
               ),
             ],
           ),
         ),
-      ),
+      ],
+    );
+  }
+
+  Widget _buildFormField({
+    required String label,
+    required IconData icon,
+    required TextEditingController controller,
+    TextInputType? keyboardType,
+    String? Function(String?)? validator,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontWeight: FontWeight.w500,
+            color: AppColors.textPrimary,
+            fontSize: 14,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.grey.shade300),
+          ),
+          child: TextFormField(
+            controller: controller,
+            keyboardType: keyboardType,
+            style: const TextStyle(color: AppColors.textPrimary),
+            decoration: InputDecoration(
+              border: InputBorder.none,
+              contentPadding: const EdgeInsets.all(16),
+              prefixIcon: Icon(icon, color: AppColors.primary),
+            ),
+            validator: validator,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPasswordField({
+    required String label,
+    required TextEditingController controller,
+    required bool obscureText,
+    required VoidCallback onToggleVisibility,
+    String? Function(String?)? validator,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontWeight: FontWeight.w500,
+            color: AppColors.textPrimary,
+            fontSize: 14,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.grey.shade300),
+          ),
+          child: TextFormField(
+            controller: controller,
+            obscureText: obscureText,
+            style: const TextStyle(color: AppColors.textPrimary),
+            decoration: InputDecoration(
+              border: InputBorder.none,
+              contentPadding: const EdgeInsets.all(16),
+              prefixIcon: const Icon(Icons.lock_outline, color: AppColors.primary),
+              suffixIcon: IconButton(
+                icon: Icon(
+                  obscureText ? Icons.visibility_off : Icons.visibility,
+                  color: Colors.grey,
+                ),
+                onPressed: onToggleVisibility,
+              ),
+            ),
+            validator: validator,
+          ),
+        ),
+      ],
     );
   }
 }

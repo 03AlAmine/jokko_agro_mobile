@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:jokko_agro/shared/models/product_model.dart';
 import 'package:jokko_agro/features/producer/presentation/controllers/products_controller.dart';
-import 'package:jokko_agro/core/constants/producer_theme.dart';
+import 'package:jokko_agro/core/themes/producer_theme.dart';
 import 'package:jokko_agro/core/widgets/producer_widgets.dart';
 
 class ProductsScreen extends StatefulWidget {
@@ -89,8 +89,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
               _buildProductsList(),
 
               // Conseils et astuces
-              if (controller.filteredProducts.isNotEmpty)
-                _buildTipsSection(),
+              if (controller.filteredProducts.isNotEmpty) _buildTipsSection(),
             ],
           ),
         ),
@@ -99,35 +98,38 @@ class _ProductsScreenState extends State<ProductsScreen> {
   }
 
   Widget _buildStatsSection() {
-    return Row(
-      children: [
-        Expanded(
-          child: ProducerStatCard(
-            value: controller.totalProductsCount.toString(),
-            label: 'Produits total',
-            icon: Icons.inventory_2_outlined,
-            color: ProducerTheme.producerPrimary,
+    return SizedBox(
+      height: 120, // Hauteur fixe
+      child: Row(
+        children: [
+          Expanded(
+            child: ProducerStatCard(
+              value: controller.totalProductsCount.toString(),
+              label: 'Produits total',
+              icon: Icons.inventory_2_outlined,
+              color: ProducerTheme.producerPrimary,
+            ),
           ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: ProducerStatCard(
-            value: controller.availableProductsCount.toString(),
-            label: 'Disponibles',
-            icon: Icons.check_circle_outline,
-            color: ProducerTheme.producerSuccess,
+          const SizedBox(width: 8),
+          Expanded(
+            child: ProducerStatCard(
+              value: controller.availableProductsCount.toString(),
+              label: 'Disponibles',
+              icon: Icons.check_circle_outline,
+              color: ProducerTheme.producerSuccess,
+            ),
           ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: ProducerStatCard(
-            value: '${controller.totalValueSum.toInt()}',
-            label: 'Valeur totale',
-            icon: Icons.attach_money_outlined,
-            color: ProducerTheme.producerWarning,
+          const SizedBox(width: 8),
+          Expanded(
+            child: ProducerStatCard(
+              value: '${controller.totalValueSum.toInt()}',
+              label: 'Valeur totale',
+              icon: Icons.attach_money_outlined,
+              color: ProducerTheme.producerWarning,
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -150,7 +152,8 @@ class _ProductsScreenState extends State<ProductsScreen> {
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: ProducerTheme.inputBorderRadius,
-                borderSide: const BorderSide(color: ProducerTheme.producerPrimary),
+                borderSide:
+                    const BorderSide(color: ProducerTheme.producerPrimary),
               ),
               contentPadding: const EdgeInsets.symmetric(
                 horizontal: 12,
@@ -187,8 +190,9 @@ class _ProductsScreenState extends State<ProductsScreen> {
                 const Icon(Icons.category_outlined, size: 16),
                 const SizedBox(width: 4),
                 Text(controller.selectedCategory.value != 'all'
-                    ? controller.categories
-                        .firstWhere((c) => c['id'] == controller.selectedCategory.value)['name'] as String
+                    ? controller.categories.firstWhere((c) =>
+                        c['id'] ==
+                        controller.selectedCategory.value)['name'] as String
                     : 'Catégorie'),
               ],
             ),
@@ -217,8 +221,9 @@ class _ProductsScreenState extends State<ProductsScreen> {
                 const Icon(Icons.circle_outlined, size: 16),
                 const SizedBox(width: 4),
                 Text(controller.selectedStatus.value != 'all'
-                    ? controller.statuses
-                        .firstWhere((s) => s['id'] == controller.selectedStatus.value)['name'] as String
+                    ? controller.statuses.firstWhere((s) =>
+                            s['id'] == controller.selectedStatus.value)['name']
+                        as String
                     : 'Statut'),
               ],
             ),
@@ -246,8 +251,9 @@ class _ProductsScreenState extends State<ProductsScreen> {
               children: [
                 const Icon(Icons.sort_outlined, size: 16),
                 const SizedBox(width: 4),
-                Text(controller.sortOptions
-                    .firstWhere((s) => s['id'] == controller.sortBy.value)['name'] as String),
+                Text(controller.sortOptions.firstWhere(
+                        (s) => s['id'] == controller.sortBy.value)['name']
+                    as String),
               ],
             ),
             selected: controller.sortBy.value != 'recent',
@@ -344,11 +350,12 @@ class _ProductsScreenState extends State<ProductsScreen> {
     final totalValue = product.price * product.quantity;
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 16),
+      margin: const EdgeInsets.only(bottom: 12), // Espacement réduit
       child: ProducerCard(
         onTap: () => controller.viewProduct(product.id),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min, // Important
           children: [
             // En-tête
             Row(
@@ -356,20 +363,20 @@ class _ProductsScreenState extends State<ProductsScreen> {
               children: [
                 // Icône de catégorie
                 Container(
-                  width: 50,
-                  height: 50,
+                  width: 40, // Plus petit
+                  height: 40,
                   decoration: BoxDecoration(
                     color: ProducerTheme.producerPrimary.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(10),
                   ),
                   child: Center(
                     child: Text(
                       category['icon'] as String? ?? '📦',
-                      style: const TextStyle(fontSize: 24),
+                      style: const TextStyle(fontSize: 20), // Plus petit
                     ),
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 8),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -379,29 +386,33 @@ class _ProductsScreenState extends State<ProductsScreen> {
                           Expanded(
                             child: Text(
                               product.name,
-                              style: ProducerTheme.headlineSmall.copyWith(
-                                fontSize: 16,
+                              style: ProducerTheme.bodyMedium.copyWith(
+                                fontWeight: FontWeight.w600,
                               ),
                               maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
-                          const SizedBox(width: 8),
+                          const SizedBox(width: 4),
                           Container(
                             padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
+                              horizontal: 6,
+                              vertical: 2,
                             ),
                             decoration: BoxDecoration(
-                              color: (statusInfo['color'] as Color?)?.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(6),
+                              color: (statusInfo['color'] as Color?)
+                                  ?.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(4),
                               border: Border.all(
-                                color: statusInfo['color'] as Color? ?? Colors.grey,
+                                color: statusInfo['color'] as Color? ??
+                                    Colors.grey,
+                                width: 0.5,
                               ),
                             ),
                             child: Text(
                               statusInfo['text'] as String? ?? '',
                               style: TextStyle(
-                                fontSize: 12,
+                                fontSize: 10, // Plus petit
                                 fontWeight: FontWeight.w500,
                                 color: statusInfo['color'] as Color?,
                               ),
@@ -409,7 +420,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 2),
                       ProducerTag(
                         label: category['name'] as String? ?? product.category,
                         icon: Icons.category_outlined,
@@ -420,36 +431,44 @@ class _ProductsScreenState extends State<ProductsScreen> {
                 ),
               ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
 
             // Description
             if (product.description != null)
-              Text(
-                product.description!.length > 100
-                    ? '${product.description!.substring(0, 100)}...'
-                    : product.description!,
-                style: ProducerTheme.bodySmall,
-                maxLines: 2,
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Text(
+                  product.description!.length > 80
+                      ? '${product.description!.substring(0, 80)}...'
+                      : product.description!,
+                  style: ProducerTheme.bodySmall.copyWith(
+                    fontSize: 11, // Plus petit
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
-
-            const SizedBox(height: 12),
 
             // Détails prix et quantité
             _buildProductDetails(product, totalValue),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
 
             // Statistiques
             _buildProductStats(product),
-            const SizedBox(height: 12),
 
             // Tags
-            if (product.isOrganic || (product.certifications?.isNotEmpty ?? false))
-              _buildProductTags(product),
-            if (product.isOrganic || (product.certifications?.isNotEmpty ?? false))
-              const SizedBox(height: 12),
+            if (product.isOrganic ||
+                (product.certifications?.isNotEmpty ?? false))
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: _buildProductTags(product),
+              ),
 
             // Actions
-            _buildProductActions(product),
+            Padding(
+              padding: const EdgeInsets.only(top: 12),
+              child: _buildProductActions(product),
+            ),
           ],
         ),
       ),
@@ -458,21 +477,23 @@ class _ProductsScreenState extends State<ProductsScreen> {
 
   Widget _buildProductDetails(Product product, double totalValue) {
     return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
         Row(
           children: [
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
                     'Prix unitaire',
-                    style: ProducerTheme.caption,
+                    style: ProducerTheme.caption.copyWith(fontSize: 10),
                   ),
-                  const SizedBox(height: 2),
+                  const SizedBox(height: 1),
                   Text(
                     '${product.price.toInt()} FCFA/${product.unit}',
-                    style: ProducerTheme.bodyMedium.copyWith(
+                    style: ProducerTheme.bodySmall.copyWith(
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -482,15 +503,16 @@ class _ProductsScreenState extends State<ProductsScreen> {
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    'Quantité en stock',
-                    style: ProducerTheme.caption,
+                    'Quantité stock',
+                    style: ProducerTheme.caption.copyWith(fontSize: 10),
                   ),
-                  const SizedBox(height: 2),
+                  const SizedBox(height: 1),
                   Text(
                     '${product.quantity} ${product.unit}',
-                    style: ProducerTheme.bodyMedium.copyWith(
+                    style: ProducerTheme.bodySmall.copyWith(
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -499,24 +521,27 @@ class _ProductsScreenState extends State<ProductsScreen> {
             ),
           ],
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 4),
         Row(
           children: [
             const Icon(
               Icons.account_balance_wallet_outlined,
-              size: 16,
+              size: 12,
               color: Colors.grey,
             ),
-            const SizedBox(width: 4),
+            const SizedBox(width: 2),
             Text(
               'Valeur totale: ',
-              style: ProducerTheme.caption,
+              style: ProducerTheme.caption.copyWith(fontSize: 10),
             ),
-            Text(
-              '${totalValue.toInt()} FCFA',
-              style: ProducerTheme.bodyMedium.copyWith(
-                fontWeight: FontWeight.bold,
-                color: ProducerTheme.producerPrimary,
+            Flexible(
+              child: Text(
+                '${totalValue.toInt()} FCFA',
+                style: ProducerTheme.bodySmall.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: ProducerTheme.producerPrimary,
+                ),
+                overflow: TextOverflow.ellipsis,
               ),
             ),
           ],
@@ -527,10 +552,10 @@ class _ProductsScreenState extends State<ProductsScreen> {
 
   Widget _buildProductStats(Product product) {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
         color: Colors.grey.shade50,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -540,54 +565,83 @@ class _ProductsScreenState extends State<ProductsScreen> {
             value: '${product.sales}',
             label: 'Ventes',
             color: ProducerTheme.producerSuccess,
+            size: 14, // Plus petit
           ),
           _buildStatItem(
             icon: Icons.star_outlined,
             value: product.rating.toStringAsFixed(1),
             label: 'Note',
             color: ProducerTheme.producerWarning,
+            size: 14,
           ),
           _buildStatItem(
             icon: Icons.remove_red_eye_outlined,
             value: '${product.views}',
             label: 'Vues',
             color: ProducerTheme.producerInfo,
+            size: 14,
           ),
           _buildStatItem(
             icon: Icons.calendar_today_outlined,
-            value: controller.formatDate(product.updatedAt),
+            value: _formatDateShort(product.updatedAt),
             label: 'Modifié',
             color: Colors.grey,
+            size: 14,
           ),
         ],
       ),
     );
   }
 
+  String _formatDateShort(DateTime date) {
+    final now = DateTime.now();
+    final difference = now.difference(date);
+
+    if (difference.inDays == 0) {
+      return 'Auj.';
+    } else if (difference.inDays == 1) {
+      return 'Hier';
+    } else if (difference.inDays < 7) {
+      return '${difference.inDays}j';
+    } else if (difference.inDays < 30) {
+      final weeks = (difference.inDays / 7).floor();
+      return '${weeks}sem';
+    } else {
+      return '${date.day}/${date.month}';
+    }
+  }
+
+// Mettre à jour _buildStatItem :
   Widget _buildStatItem({
     required IconData icon,
     required String value,
     required String label,
     required Color color,
+    double size = 14,
   }) {
     return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
         Icon(
           icon,
-          size: 18,
+          size: size,
           color: color,
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 2),
         Text(
           value,
-          style: ProducerTheme.bodySmall.copyWith(
+          style: TextStyle(
+            fontSize: 10,
             fontWeight: FontWeight.bold,
             color: Colors.grey[800],
           ),
         ),
         Text(
           label,
-          style: ProducerTheme.caption,
+          style: const TextStyle(
+            fontSize: 8,
+            color: Colors.grey,
+          ),
         ),
       ],
     );
@@ -611,7 +665,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
       for (var cert in product.certifications!) {
         String text = '';
         IconData iconData;
-        
+
         switch (cert) {
           case 'local':
             text = 'Local';
@@ -629,7 +683,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
             text = cert;
             iconData = Icons.verified_outlined;
         }
-        
+
         tags.add(
           ProducerTag(
             label: text,
@@ -657,7 +711,8 @@ class _ProductsScreenState extends State<ProductsScreen> {
             label: const Text('Modifier'),
             style: OutlinedButton.styleFrom(
               foregroundColor: ProducerTheme.producerPrimary,
-              side: BorderSide(color: ProducerTheme.producerPrimary.withOpacity(0.5)),
+              side: BorderSide(
+                  color: ProducerTheme.producerPrimary.withOpacity(0.5)),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(8),
               ),
@@ -937,7 +992,8 @@ class _ProductsScreenState extends State<ProductsScreen> {
             fillColor: Colors.grey.shade50,
           ),
           value: controller.selectedCategory.value,
-          items: controller.categories.map<DropdownMenuItem<String>>((category) {
+          items:
+              controller.categories.map<DropdownMenuItem<String>>((category) {
             return DropdownMenuItem<String>(
               value: category['id'] as String,
               child: Row(
@@ -1040,11 +1096,13 @@ class _ProductsScreenState extends State<ProductsScreen> {
                     ),
                     selected: isSelected,
                     onSelected: (_) {
-                      controller.selectedCategory.value = category['id'] as String;
+                      controller.selectedCategory.value =
+                          category['id'] as String;
                       controller.applyFilters();
                       Get.back();
                     },
-                    selectedColor: ProducerTheme.producerPrimary.withOpacity(0.2),
+                    selectedColor:
+                        ProducerTheme.producerPrimary.withOpacity(0.2),
                     backgroundColor: Colors.grey.shade100,
                     labelStyle: TextStyle(
                       color: isSelected
@@ -1082,7 +1140,8 @@ class _ProductsScreenState extends State<ProductsScreen> {
                 spacing: 8,
                 runSpacing: 8,
                 children: controller.statuses.map((status) {
-                  final isSelected = controller.selectedStatus.value == status['id'];
+                  final isSelected =
+                      controller.selectedStatus.value == status['id'];
                   return FilterChip(
                     label: Text(status['name'] as String),
                     selected: isSelected,
@@ -1091,7 +1150,8 @@ class _ProductsScreenState extends State<ProductsScreen> {
                       controller.applyFilters();
                       Get.back();
                     },
-                    selectedColor: ProducerTheme.producerSecondary.withOpacity(0.2),
+                    selectedColor:
+                        ProducerTheme.producerSecondary.withOpacity(0.2),
                     backgroundColor: Colors.grey.shade100,
                     labelStyle: TextStyle(
                       color: isSelected
